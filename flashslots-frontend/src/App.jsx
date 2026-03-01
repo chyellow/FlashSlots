@@ -12,19 +12,6 @@ function App() {
         infrastructure for the product.
       </p>
 
-      <div
-        style={{
-          marginTop: 24,
-          padding: 16,
-          border: "1px solid #ddd",
-          borderRadius: 12,
-          maxWidth: 420,
-        }}
-      >
-        <h3 style={{ marginTop: 0 }}>System Status</h3>
-        <p>Frontend: Running ✅</p>
-        <p>Backend: Not connected (coming soon)</p>
-      </div>
     </div>
   );
 }

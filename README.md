@@ -32,4 +32,3 @@ cd FlashSlots/flashslots-frontend
 npm install
 npm run dev
 ```
-This should 

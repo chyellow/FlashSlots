@@ -21,9 +21,15 @@ You can verify your installation by running:
 ```bash
 node -v
 npm -v
+git -v
+```
+Once all are installed the following commands can be run
 
+```bash
 git clone https://github.com/chyellow/FlashSlots.git
 cd FlashSlots/flashslots-frontend
 
 npm install
 npm run dev
+```
+This should 

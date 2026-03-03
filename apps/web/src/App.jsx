@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import './App.css'
 import { Calendar } from './components/ui/calendar';
+import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   ResizableHandle,
@@ -37,20 +38,30 @@ function App() {
         This alpha release demonstrates the foundational frontend
         infrastructure for the product.
       </p>
-    <Tabs defaultValue="business" className="w-[400px]">
-      <TabsList>
+    <Tabs defaultValue="business" className="w-full max-w-4xl mt-10">
+      <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="business">Business</TabsTrigger>
         <TabsTrigger value="client">Client</TabsTrigger>
       </TabsList>
-      <TabsContent value="business">Business UI goes here</TabsContent>
-      <TabsContent value="client">Client UI goes here</TabsContent>
+      <Separator />
+      <TabsContent value="business">Business UI goes here
+        <ResizablePanelGroup orientation="horizontal">
+          <ResizablePanel>One</ResizablePanel>
+        <ResizableHandle />
+          <ResizablePanel>Two</ResizablePanel>
+        </ResizablePanelGroup>
+
+      </TabsContent>
+      <TabsContent value="client">Client UI goes here
+        <ResizablePanelGroup orientation="horizontal">
+          <ResizablePanel>One</ResizablePanel>
+        <ResizableHandle />
+          <ResizablePanel>Two</ResizablePanel>
+        </ResizablePanelGroup>
+      </TabsContent>
     </Tabs>
 
-    <ResizablePanelGroup orientation="horizontal">
-      <ResizablePanel>One</ResizablePanel>
-    <ResizableHandle />
-      <ResizablePanel>Two</ResizablePanel>
-    </ResizablePanelGroup>
+    
        
     </div>
        

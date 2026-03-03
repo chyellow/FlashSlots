@@ -1,6 +1,18 @@
 # FlashSlots
 FlashSlots is a real-time marketplace for “expiring time” that helps service providers, beginning with barbers, recover revenue from last-minute cancellations by instantly advertising newly-open time slots
 
+## Repo Structure
+
+- `apps/web/` — React and Vite frontend (client, vendor, and any admin UIs). Calls the backend API.
+- `services/api/` — FastAPI backend (REST endpoints, business logic, and DB access).
+    - `app/api/` — route handlers (HTTP endpoints)
+    - `app/services/` — core workflows (posting openings, holds/booking, cancellations, notifications)
+    - `app/models/` — database models
+    - `app/schemas/` — request/response DTOs (API contracts)
+    - `app/workers/` — background jobs (expire holds/openings, send notifications)
+- `infra/` — local infrastructure (e.g., Docker Compose for the database).
+- `docs/` — SDS, diagrams, and project documentation.
+
 
 ## FlashSlots Frontend (Alpha)
 

@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import './App.css'
 import { Calendar } from './components/ui/calendar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable"
 import { getTheme, applyTheme } from "@/lib/theme"
 
 function ThemeToggle() {
@@ -24,25 +30,29 @@ function App() {
   const [date, setDate] = useState(new Date())
 
   return (
-    <div className='flex items-center justify-center h-screen flex-col'>
-      <h1 className='text-6xl'>FlashSlots</h1>
-      <h2 className='text-2xl m-2'>Alpha Release</h2>
+    <div className='flex items-center justify-start h-screen flex-col'>
+      <h1 className='text-3xl'>FlashSlots--Alpha Release</h1>
       <p>
         FlashSlots is a real-time marketplace for last-minute service openings.
         This alpha release demonstrates the foundational frontend
         infrastructure for the product.
       </p>
+    <Tabs defaultValue="business" className="w-[400px]">
+      <TabsList>
+        <TabsTrigger value="business">Business</TabsTrigger>
+        <TabsTrigger value="client">Client</TabsTrigger>
+      </TabsList>
+      <TabsContent value="business">Business UI goes here</TabsContent>
+      <TabsContent value="client">Client UI goes here</TabsContent>
+    </Tabs>
 
-       <div className='m-15'>
-        <Calendar
-    mode="single"
-    selected={date}
-    onSelect={setDate}
-    className="rounded-lg border "
-  />
-
+    <ResizablePanelGroup orientation="horizontal">
+      <ResizablePanel>One</ResizablePanel>
+    <ResizableHandle />
+      <ResizablePanel>Two</ResizablePanel>
+    </ResizablePanelGroup>
+       
     </div>
-       </div>
        
   );
 }

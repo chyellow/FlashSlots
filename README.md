@@ -23,10 +23,12 @@ frontend infrastructure and project setup.
 ### Prerequisites
 
 You must have the following installed:
-
 - Node.js (v18 or later recommended)
 - npm (included with Node.js)
 - Git
+- Python 3.11+ (for backend development)
+- Docker (for local infrastructure)
+- PgAdmin (optional, for database management)
 
 You can verify your installation by running:
 
@@ -35,6 +37,47 @@ node -v
 npm -v
 git -v
 ```
+
+## Setup Guide
+The first step is to stand up the local infrastructure supported by Docker Compose and PostgreSQL.
+
+The following command starts the DB and any other necessary services defined in `infra/docker-compose.yml`:
+```bash
+docker compose -f infra/docker-compose.yml up -d
+```
+
+Confirm that the PostgreSQL container is running and accessible:
+```bash
+docker ps
+```
+
+See the tables and schemas loaded in from when you stood up this infrastructure:
+```bash
+docker exec -it infra-db-1 psql -U flashslots -d flashslots -c "\dt"
+```
+
+If you do not see any tables or schemas, reset volumes so init scripts can run again:
+```bash
+docker compose -f infra/docker-compose.yml down -v
+docker compose -f infra/docker-compose.yml up -d
+docker exec -it infra-db-1 psql -U flashslots -d flashslots -c "\dt"
+```
+
+Alternatively, instead of taking the last two steps, you can use PgAdmin to connect to the database
+by using the credentials found in docker-compose.yml 
+
+# PLACEHOLDER: Set up backend environment and install any necessary dependencies (e.g., Python packages, environment variables).
+
+# PLACEHOLDER: Any FastAPI specific set up steps (e.g., running migrations, starting the server).
+
+# PLACEHOLDER: Final version of setting up the frontend environment and installing the frontend dependencies
+
+# NOTE: Documentation of your individual steps are required. The final iteration of this project will include a Makefile that aggregates all steps to achieve maximum efficiency (and grade)
+
+
+
+
+## DEPRECATED:
 Once all are installed the following commands can be run
 
 ```bash

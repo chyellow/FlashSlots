@@ -1,7 +1,14 @@
 import * as React from "react"
-import { Clock, Settings, X } from "lucide-react"
+import { Clock, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu"
 import {
   DndContext,
   DragOverlay,
@@ -32,13 +39,14 @@ const formatDisplayTime = (time, useAmPm) => {
   const [h, m] = time.split(":").map(Number)
   const ampm = h >= 12 ? "PM" : "AM"
   const h12 = h % 12 || 12
+  // Drop :00 to save space
   return `${h12}:${m.toString().padStart(2, "0")} ${ampm}`;
 }
 
-// Helper to generate a simple unique ID (not crypto secure but sufficient for UI)
 const generateId = () => nanoid()
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+const SHORT_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
 /**
  * Merges adjacent (contiguous) time spans on the same day.
@@ -48,7 +56,6 @@ const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", 
 const mergeAdjacentSpans = spans => {
   if (spans.length === 0) return spans
 
-  // Group by day
   const byDay = new Map()
   spans.forEach(span => {
     const daySpans = byDay.get(span.week_day) || []
@@ -58,9 +65,7 @@ const mergeAdjacentSpans = spans => {
 
   const merged = []
 
-  // Process each day
   byDay.forEach(daySpans => {
-    // Sort by start time
     const sorted = [...daySpans].sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time))
 
     let current = sorted[0]
@@ -68,22 +73,17 @@ const mergeAdjacentSpans = spans => {
     for (let i = 1; i < sorted.length; i++) {
       const next = sorted[i]
 
-      // Check if current and next are adjacent (touching)
       if (current.end_time === next.start_time) {
-        // Merge: extend current to include next
         current = {
           ...current,
           end_time: next.end_time,
-          // Keep the earliest span's id (current is already earlier due to sorting)
         }
       } else {
-        // Not adjacent, push current and move to next
         merged.push(current)
         current = next
       }
     }
 
-    // Push the last span
     merged.push(current)
   })
 
@@ -92,9 +92,6 @@ const mergeAdjacentSpans = spans => {
 
 // --- Hooks ---
 
-/**
- * Hook to handle creation dragging logic on a day column.
- */
 function useCalendarCreation({
   containerRef,
   timeIncrements,
@@ -113,8 +110,6 @@ function useCalendarCreation({
   const totalMinutes = (endTime - startTime) * 60
   const startOffset = startTime * 60
 
-  // Combine events and disabled regions for constraints
-  // Sort all items by start time to determine safe zones
   const sortedConstraints = React.useMemo(() => {
     return [...events, ...disabledEvents].sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
   }, [events, disabledEvents])
@@ -129,25 +124,21 @@ function useCalendarCreation({
   }
 
   const handlePointerDown = (e) => {
-    if (isDayDisabled) return // No interaction if day is fully disabled
-    if (e.target !== e.currentTarget) return // Only trigger on empty space
-    // Prevent default drag behavior and text selection, but allow touch scrolling if not handled
+    if (isDayDisabled) return
+    if (e.target !== e.currentTarget) return
     e.preventDefault()
 
-    // Capture pointer to track movement even if it leaves the element
     containerRef.current?.setPointerCapture(e.pointerId)
 
     const startMins = getMinutesFromY(e.clientY)
 
-    // Check strict overlap at start point (cannot start creation inside an event or disabled region)
     const isOverlapping = sortedConstraints.some(ev => {
       const s = timeToMinutes(ev.start_time)
-      const e = timeToMinutes(ev.end_time)
-      return startMins >= s && startMins < e
+      const end = timeToMinutes(ev.end_time)
+      return startMins >= s && startMins < end
     })
     if (isOverlapping) return
 
-    // Find constraints
     const prevEvent = sortedConstraints.filter(ev => timeToMinutes(ev.end_time) <= startMins).pop()
     const nextEvent = sortedConstraints.find(ev => timeToMinutes(ev.start_time) >= startMins)
 
@@ -160,7 +151,6 @@ function useCalendarCreation({
 
     const handlePointerMove = (ev) => {
       const currentMins = getMinutesFromY(ev.clientY)
-      // Clamp to constraints
       const clampedMins = Math.max(minStartMins, Math.min(currentMins, maxEndMins))
       setCurrentMouseY(clampedMins)
     }
@@ -171,16 +161,13 @@ function useCalendarCreation({
       let finalStart = Math.min(startMins, currentMins)
       let finalEnd = Math.max(startMins, currentMins)
 
-      // Clamp to constraints
       finalStart = Math.max(minStartMins, finalStart)
       finalEnd = Math.min(maxEndMins, finalEnd)
 
-      // Ensure minimum size
       if (finalEnd - finalStart < timeIncrements) {
         finalEnd = Math.min(finalStart + timeIncrements, maxEndMins)
       }
 
-      // Click-to-create logic (if essentially no drag occurred, try to make a 1-hour slot)
       if (finalEnd - finalStart <= timeIncrements) {
         const oneHourEnd = finalStart + 60
         finalEnd = Math.min(oneHourEnd, maxEndMins)
@@ -194,10 +181,8 @@ function useCalendarCreation({
       setCreationStart(null)
       setCurrentMouseY(null)
 
-      // Release pointer capture
       containerRef.current?.releasePointerCapture(ev.pointerId)
 
-      // Cleanup listeners (though using setPointerCapture implicitly handles some of this, explicit cleanup is safe)
       window.removeEventListener("pointermove", handlePointerMove)
       window.removeEventListener("pointerup", handlePointerUp)
     }
@@ -219,7 +204,6 @@ function useCalendarCreation({
 
 // --- Components ---
 
-// Context to share dragging state across components
 const AvailabilityDragContext = React.createContext(null)
 
 export function Availability({
@@ -238,7 +222,6 @@ export function Availability({
 }) {
   const [internalValue, setInternalValue] = React.useState(value)
 
-  // Drag state
   const dragPreviewTunnel = React.useMemo(() => tunnel(), [])
   const [activeId, setActiveId] = React.useState(null)
   const [overDayIndex, setOverDayIndex] = React.useState(null)
@@ -247,7 +230,6 @@ export function Availability({
 
   const mainContainerRef = React.useRef(null)
 
-  // Determine which days to render
   const renderedDays = React.useMemo(() => {
     if (showAllDays) {
       return [0, 1, 2, 3, 4, 5, 6]
@@ -278,7 +260,7 @@ export function Availability({
   const handleCreate = (dayIndex, startMinutes, endMinutes) => {
     const newSpan = {
       id: generateId(),
-      week_day: dayIndex, // Directly use the dayIndex (0-6)
+      week_day: dayIndex,
       start_time: minutesToTime(startMinutes),
       end_time: minutesToTime(endMinutes),
       active: true,
@@ -300,7 +282,6 @@ export function Availability({
     updateValue(newValue, true)
   }
 
-  // Validation helper
   const validatePlacement = (span, targetDayIndex, deltaY, containerHeight) => {
     const totalMinutes = (endTime - startTime) * 60
     const pixelsPerMinute = containerHeight / totalMinutes
@@ -313,7 +294,6 @@ export function Availability({
     const newStart = originalStart + deltaMinutes
     const newEnd = newStart + duration
 
-    // Check bounds
     const dayStartMins = startTime * 60
     const dayEndMins = endTime * 60
 
@@ -321,12 +301,10 @@ export function Availability({
       return { isValid: false, newStart, duration }
     }
 
-    // Check if day is active (in allowed days list)
     if (!days.includes(targetDayIndex)) {
       return { isValid: false, newStart, duration }
     }
 
-    // Check collisions with active events
     const dayEvents = internalValue.filter(e => e.week_day === targetDayIndex && e.id !== span.id)
     const hasEventOverlap = dayEvents.some(e => {
       const eStart = timeToMinutes(e.start_time)
@@ -338,7 +316,6 @@ export function Availability({
       return { isValid: false, newStart, duration }
     }
 
-    // Check collisions with disabled regions
     const dayDisabled = disabled.filter(e => e.week_day === targetDayIndex)
     const hasDisabledOverlap = dayDisabled.some(e => {
       const eStart = timeToMinutes(e.start_time)
@@ -353,7 +330,6 @@ export function Availability({
     return { isValid: true, newStart, duration }
   }
 
-  // DnD Handlers
   const sensors = useSensors(useSensor(PointerSensor, {
     activationConstraint: {
       distance: 8,
@@ -423,13 +399,9 @@ export function Availability({
     const targetDayIndex = parseInt(over.id.toString().replace("day-", ""), 10)
     if (isNaN(targetDayIndex)) return
 
-    // Final validation before commit
     const { isValid, newStart, duration } = validatePlacement(span, targetDayIndex, delta.y, mainContainerRef.current.clientHeight)
 
-    if (!isValid) {
-      // Invalid drop, do nothing (snaps back)
-      return
-    }
+    if (!isValid) return
 
     const newEndVal = newStart + duration
     handleMove(span.id, minutesToTime(newStart), minutesToTime(newEndVal), targetDayIndex)
@@ -467,7 +439,7 @@ export function Availability({
           {/* Header */}
           <div className="flex w-full border-b bg-muted/40">
             <div
-              className="w-16 flex-shrink-0 border-r p-2 text-xs font-medium text-muted-foreground" />
+              className="w-14 flex-shrink-0 border-r p-2 text-xs font-medium text-muted-foreground" />
             <div className="flex flex-1">
               {renderedDays.map(dayIndex => {
                 const isActive = days.includes(dayIndex)
@@ -475,10 +447,11 @@ export function Availability({
                   <div
                     key={dayIndex}
                     className={cn(
-                      "flex-1 border-r px-2 py-3 text-center text-sm font-medium last:border-r-0",
+                      "flex-1 border-r px-1 py-3 text-center text-sm font-medium last:border-r-0",
                       !isActive && "bg-muted/30 text-muted-foreground"
                     )}>
-                    {DAYS[dayIndex]}
+                    <span className="hidden sm:inline">{DAYS[dayIndex]}</span>
+                    <span className="sm:hidden">{SHORT_DAYS[dayIndex]}</span>
                   </div>
                 );
               })}
@@ -488,14 +461,14 @@ export function Availability({
           {/* Body */}
           <div className="flex flex-1 overflow-y-auto relative" ref={mainContainerRef}>
             {/* Time Labels */}
-            <div className="w-16 flex-shrink-0 border-r bg-muted/10 flex flex-col">
+            <div className="w-14 flex-shrink-0 border-r bg-muted/10 flex flex-col">
               {Array.from({ length: endTime - startTime }).map((_, i) => {
                 const hour = startTime + i
                 return (
                   <div
                     key={hour}
-                    className="flex-1 border-b border-dashed border-muted-foreground/20 relative flex items-center justify-start pl-3">
-                    <span className="text-xs text-muted-foreground">{formatDisplayTime(`${hour}:00`, useAmPm)}</span>
+                    className="flex-1 border-b border-dashed border-muted-foreground/20 relative flex items-center justify-start pl-1.5">
+                    <span className="text-[10px] text-muted-foreground leading-none">{formatDisplayTime(`${hour}:00`, useAmPm)}</span>
                   </div>
                 );
               })}
@@ -512,7 +485,6 @@ export function Availability({
               </div>
 
               {renderedDays.map((dayIndex, i) => {
-                // Check if this day is in the active list
                 const isActive = days.includes(dayIndex)
 
                 return (
@@ -569,8 +541,6 @@ function DayColumn({
 
   const context = React.useContext(AvailabilityDragContext)
 
-  // Make the column a droppable zone for day detection
-  // Only droppable if not disabled
   const { setNodeRef } = useDroppable({
     id: `day-${dayIndex}`,
     disabled: isDayDisabled,
@@ -594,7 +564,6 @@ function DayColumn({
       isDayDisabled,
     })
 
-  // Calculate ghost position
   const showGhost = context?.activeId && context.overDayIndex === dayIndex && containerRef.current && !isDayDisabled
 
   const ghostStyle = React.useMemo(() => {
@@ -610,12 +579,7 @@ function DayColumn({
     const originalStart = timeToMinutes(span.start_time)
     const duration = timeToMinutes(span.end_time) - originalStart
 
-    // Calculate proposed start
     const newStart = originalStart + deltaMinutes
-
-    // Determine visual feedback based on validity
-    // If we are here, context.isDropValid has already determined if this position is valid
-    // We just need to render the ghost at the proposed position (not clamped, so user sees why it fails)
 
     return {
       top: `${((newStart - startOffset) / totalMinutes) * 100}%`,
@@ -636,9 +600,8 @@ function DayColumn({
     <div
       ref={mergedRef}
       className={cn(
-        "flex-1 relative border-r last:border-r-0 min-w-[100px] touch-none",
+        "flex-1 relative border-r last:border-r-0 touch-none",
         isDayDisabled && "bg-muted/30",
-        // Ensure z-index when dragging
         context?.activeId && "z-10"
       )}
       onPointerDown={handlePointerDown}>
@@ -663,7 +626,6 @@ function DayColumn({
             style={{
               top: `${((startMins - startOffset) / totalMinutes) * 100}%`,
               height: `${(duration / totalMinutes) * 100}%`,
-              // Striped pattern using CSS gradient
               backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(128,128,128,0.15) 5px, rgba(128,128,128,0.15) 10px)`,
             }} />
         );
@@ -677,11 +639,7 @@ function DayColumn({
           )}
           style={ghostStyle} />
       )}
-      {events.map((event, i) => {
-        // Calculate neighbors considering BOTH events and disabled regions for resizing constraints
-        // sortedConstraints contains both. We just need to find neighbors relative to THIS event in that list.
-
-        // We need a clean list of constraints excluding the event itself
+      {events.map((event) => {
         const otherConstraints = sortedConstraints.filter(e => e.id !== event.id)
 
         const eventStart = timeToMinutes(event.start_time)
@@ -709,7 +667,6 @@ function DayColumn({
             timeIncrements={timeIncrements}
             containerRef={containerRef}
             isDragging={isDragging}
-            // Pass lock state if day is disabled
             isLocked={isDayDisabled}
             slotClassName={slotClassName} />
         );
@@ -745,7 +702,7 @@ function DraggableTimeSpan({
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: span.id,
     data: span,
-    disabled: isLocked, // Disable drag if locked
+    disabled: isLocked,
   })
 
   const startMinutes = timeToMinutes(span.start_time)
@@ -754,12 +711,10 @@ function DraggableTimeSpan({
   const startOffset = startTime * 60
   const durationMinutes = endMinutes - startMinutes
 
-  // Apply transform if dragging
   const style = {
     top: `${((startMinutes - startOffset) / totalMinutes) * 100}%`,
     height: `${(durationMinutes / totalMinutes) * 100}%`,
-    // We hide the original element when dragging, but we render the tunnel content
-    opacity: isDragging ? 0 : isLocked ? 0.6 : 1, // Fade if locked
+    opacity: isDragging ? 0 : isLocked ? 0.6 : 1,
   }
 
   const handleResizeStart = (e, edge) => {
@@ -767,16 +722,12 @@ function DraggableTimeSpan({
     e.stopPropagation()
     e.preventDefault()
 
-    // Capture pointer for resize drag
     const target = e.target
     target.setPointerCapture(e.pointerId)
 
     const initialY = e.clientY
     const initialStart = startMinutes
     const initialEnd = endMinutes
-
-    // Re-calculate local constraints for resize (using passed props or logic)
-    // We can trust the parent passed correct minStart/maxEnd for neighbors
 
     const handlePointerMove = (ev) => {
       if (!containerRef.current) return
@@ -793,7 +744,6 @@ function DraggableTimeSpan({
 
       if (edge === "top") {
         newStart += deltaMinutes
-        // For resize we still want clamping to neighbors
         if (newStart < minStart) newStart = minStart
         if (newStart >= newEnd - timeIncrements) newStart = newEnd - timeIncrements
       } else {
@@ -802,14 +752,12 @@ function DraggableTimeSpan({
         if (newEnd <= newStart + timeIncrements) newEnd = newStart + timeIncrements
       }
 
-      // During drag: don't merge (isComplete = false)
       onResize(span.id, minutesToTime(newStart), minutesToTime(newEnd), false)
     }
 
     const handlePointerUp = (ev) => {
       target.releasePointerCapture(ev.pointerId)
 
-      // Final commit with clamping logic repeated
       if (containerRef.current) {
         const containerHeight = containerRef.current.clientHeight
         const pixelsPerMinute = containerHeight / totalMinutes
@@ -841,20 +789,20 @@ function DraggableTimeSpan({
   }
 
   const canResize = !isLocked
+  const canDelete = !isLocked
 
   const content = (
     <>
-      {/* Resize Handle Top - Increased hit area */}
+      {/* Resize Handle Top */}
       {canResize && (
         <div
           className="absolute top-0 left-0 right-0 h-4 -mt-2 cursor-row-resize z-10"
           onPointerDown={e => handleResizeStart(e, "top")} />
       )}
-      {/* Visual Top Handle */}
       <div
         className="absolute top-0 left-1 right-1 h-1 bg-transparent group-hover:bg-foreground/20 rounded-t-sm" />
 
-      {/* Drag Handle Area (middle) - Use dnd-kit listeners here */}
+      {/* Drag Handle Area */}
       <div
         className={cn(
           "absolute inset-0 top-2 bottom-2 z-0",
@@ -867,34 +815,55 @@ function DraggableTimeSpan({
         span={span}
         useAmPm={useAmPm}
         duration={durationMinutes / 60}
-        onDelete={canResize ? () => onDelete(span.id) : undefined} />
+        isLocked={isLocked} />
 
-      {/* Resize Handle Bottom - Increased hit area */}
+      {/* Resize Handle Bottom */}
       {canResize && (
         <div
           className="absolute bottom-0 left-0 right-0 h-4 -mb-2 cursor-row-resize z-10"
           onPointerDown={e => handleResizeStart(e, "bottom")} />
       )}
-      {/* Visual Bottom Handle */}
       <div
         className="absolute bottom-0 left-1 right-1 h-1 bg-transparent group-hover:bg-foreground/20 rounded-b-sm" />
     </>
   )
 
+  // The inner slot element (shared between context menu wrapper and non-context-menu)
+  const slotElement = (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "absolute left-1 right-1 rounded border p-3 shadow-sm text-xs group overflow-hidden touch-none",
+        slotClassName,
+        isDragging && "opacity-0",
+        isLocked && "border-dashed opacity-60 cursor-default bg-muted/50"
+      )}>
+      {content}
+    </div>
+  )
+
   return (
     <>
-      <div
-        ref={setNodeRef}
-        style={style}
-        className={cn(
-          "absolute left-1 right-1 rounded border p-3 shadow-sm text-xs group overflow-hidden touch-none",
-          slotClassName,
-          isDragging && "opacity-0",
-          // Hide original while dragging
-          isLocked && "border-dashed opacity-60 cursor-default bg-muted/50"
-        )}>
-        {content}
-      </div>
+      {/* Wrap in ContextMenu for delete action (desktop: right-click, mobile: long-press) */}
+      {canDelete ? (
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            {slotElement}
+          </ContextMenuTrigger>
+          <ContextMenuContent className="w-40">
+            <ContextMenuItem
+              variant="destructive"
+              onSelect={() => onDelete(span.id)}
+            >
+              Delete slot
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+      ) : (
+        slotElement
+      )}
+
       {/* Tunnel visual content to overlay if dragging */}
       {isDragging && context && (
         <context.dragPreviewTunnel.In>
@@ -903,13 +872,11 @@ function DraggableTimeSpan({
               "absolute left-0 right-0 rounded-md border p-3 shadow-lg text-xs overflow-hidden h-full w-full",
               context.isDropValid ? "border-foreground/50 bg-foreground/10" : "border-destructive/50 bg-destructive/20"
             )}>
-            {/* Render content without interactive handlers for the preview */}
             <div
               className="absolute top-0 left-1 right-1 h-1 bg-transparent group-hover:bg-foreground/20 rounded-t-sm" />
             <TimeSpanCard
               span={span}
               useAmPm={useAmPm}
-              // No delete button in preview
               duration={durationMinutes / 60} />
             <div
               className="absolute bottom-0 left-1 right-1 h-1 bg-transparent group-hover:bg-foreground/20 rounded-b-sm" />
@@ -924,7 +891,7 @@ function TimeSpanCard({
   span,
   useAmPm,
   duration,
-  onDelete
+  isLocked = false,
 }) {
   const calculatedDuration = duration || (timeToMinutes(span.end_time) - timeToMinutes(span.start_time)) / 60
 
@@ -933,28 +900,16 @@ function TimeSpanCard({
       className="h-full flex flex-col relative items-between text-foreground timespan-inner-area pointer-events-none">
       <div className="flex flex-col gap-0.5 text-inherit">
         <p className="font-semibold leading-none">{formatDisplayTime(span.start_time, useAmPm)}</p>
-        <div className="flex items-center gap-0.5">
-          <Clock className="h-2 w-2" />{" "}
-          <p className="text-[10px] opacity-80">{calculatedDuration.toFixed(1).replace(".0", "")}h</p>
-        </div>
+        {/* Only show duration when the slot is tall enough (2h+) */}
+        {calculatedDuration >= 2 && (
+          <div className="flex items-center gap-0.5">
+            <Clock className="h-2 w-2" />{" "}
+            <p className="text-[10px] opacity-80">{calculatedDuration.toFixed(1).replace(".0", "")}h</p>
+          </div>
+        )}
       </div>
-      {onDelete && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-5 w-5 hover:bg-foreground/5 dark:hover:bg-foreground/10 -mt-1 -mr-1 absolute top-0 right-0 z-20 pointer-events-auto"
-          onPointerDown={e => {
-            e.stopPropagation() // Prevent drag/resize from card
-          }}
-          onClick={e => {
-            e.stopPropagation()
-            onDelete()
-          }}>
-          <X className="h-3 w-3" />
-        </Button>
-      )}
       <div className="flex flex-col gap-1 mt-auto text-inherit">
-        {!onDelete && <Settings className="h-3 w-3 opacity-50" />}
+        {isLocked && <Settings className="h-3 w-3 opacity-50" />}
         <p className="font-semibold leading-none !text-inherit">{formatDisplayTime(span.end_time, useAmPm)}</p>
       </div>
     </div>

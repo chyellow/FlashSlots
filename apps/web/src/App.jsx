@@ -2,7 +2,7 @@ import { useState } from 'react';
 import './App.css'
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router"
+import { Routes, Route, Navigate } from "react-router"
 import { VendorView } from './views/VendorView';
 import { ClientView } from './views/ClientView';
 
@@ -32,9 +32,6 @@ function ThemeToggle() {
 
 
 function App() {
-  const Navigate = useNavigate();
-  const Location = useLocation();
-
   return (
     <div className="w-full flex items-center justify-start h-screen flex-col">
       

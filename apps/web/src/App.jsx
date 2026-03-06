@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/resizable"
 
 import { getTheme, applyTheme } from "@/lib/theme"
+import HomeView from './views/HomeView';
 
 function ThemeToggle() {
   const [theme, setTheme] = useState(getTheme())
@@ -31,42 +32,18 @@ function ThemeToggle() {
 
 
 function App() {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-   // Derive active tab from the current URL
-  const currentTab = location.pathname.startsWith("/client")
-    ? "client"
-    : "business";
+  const Navigate = useNavigate();
+  const Location = useLocation();
 
   return (
     <div className="w-full flex items-center justify-start h-screen flex-col">
-      <h1 className="text-3xl">FlashSlots--Alpha Release</h1>
-      <p className='mt-2.5'>
-        FlashSlots is a real-time marketplace for last-minute service openings.
-      </p>
-
-      <Tabs
-        value={currentTab}
-        onValueChange={(value) => {
-
-          // Tab is clicked, navigate to that route
-          navigate(value === "client" ? "/client" : "/vendor");
-        }}
-        className="w-full max-w-4xl mt-5"
-      >
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="business">Business</TabsTrigger>
-          <TabsTrigger value="client">Client</TabsTrigger>
-        </TabsList>
-        <Separator />
-      </Tabs>
+      
 
       {/* The route decides what renders below the tabs */}
       <Routes>
-        <Route path="/vendor" element={<VendorView />} />
-        <Route path="/client" element={<ClientView />} />
-        <Route path="*" element={<Navigate to="/vendor" replace />} />
+        <Route path="/" element={<HomeView />} />
+        {/* Add future routes here, e.g.: */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   );

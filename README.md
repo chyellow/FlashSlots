@@ -68,6 +68,18 @@ by using the credentials found in docker-compose.yml
 
 # PLACEHOLDER: Set up backend environment and install any necessary dependencies (e.g., Python packages, environment variables).
 
+## Models Implementation
+
+Implemented the core SQLAlchemy models based on the provided database schema for the alpha release.
+
+Each model’s attributes were aligned with the columns defined in the schema to ensure consistency with the existing database structure.
+
+Relationships were created to reflect the multiplicity between entities (one-to-one, one-to-manw) and allows SQLAlchemy to properly map associations between accounts, profiles, businesses, openings, reservations, reviews, and notifications.
+
+The relationships help simplify querying related data and allow the application logic to easily navigate between connected records in the database.
+
+The SQLAlchemy `Base` declarative class was configured so that all models inherit from the same metadata base.
+
 # PLACEHOLDER: Any FastAPI specific set up steps (e.g., running migrations, starting the server).
 
 # PLACEHOLDER: Final version of setting up the frontend environment and installing the frontend dependencies

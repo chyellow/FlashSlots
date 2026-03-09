@@ -3,25 +3,18 @@ import { apiFetch } from "@/lib/api";
 const MOCK = true;
 
 const mockProfiles = {
-  ademir: {
-    display_name: "Ademir",
-    city: "New Brunswick",
-    state: "NY",
-    phone: "(609) 254-1312",
-    avatar: null,
-  },
-  manuel: {
-    display_name: "Manuel Lopes",
-    city: "Los Angeles",
-    state: "CA",
-    phone: "(323) 555-0912",
-    avatar: "https://barbercraftsd.com/wp-content/uploads/2022/09/pexels-photo-7697401-1-scaled.jpg",
-  },
-  rutgers: {
-    display_name: "Rutgers University",
+  vendor: {
+    display_name: "Vendor",
     city: "New Brunswick",
     state: "NJ",
-    phone: "(732) 445-4636",
+    phone: "(609) 254-1312",
+    avatar: "https://barbercraftsd.com/wp-content/uploads/2022/09/pexels-photo-7697401-1-scaled.jpg",
+  },
+  client: {
+    display_name: "Client 1",
+    city: "Piscataway",
+    state: "NJ",
+    phone: "(732) 555-0912",
     avatar: null,
   },
 };

@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import './App.css'
-import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Routes, Route, Navigate } from "react-router"
 import { VendorView } from './views/VendorView';
 import { ClientView } from './views/ClientView';
+import  HomeView  from './views/HomeView';
 import  ProfileView  from './views/ProfileView';
 import { getTheme, applyTheme } from "@/lib/theme"
 

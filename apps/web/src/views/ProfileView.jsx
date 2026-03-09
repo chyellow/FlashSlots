@@ -61,16 +61,16 @@ function ProfileView() {
     .toUpperCase()
 
   return (
-    
-    <div className="w-full h-screen flex items-center justify-center px-4">
+    <div className="w-full h-screen flex flex-col items-center justify-center px-4 my-10">
       <Button
         asChild
         variant="outline"
-        className="w-[212px] justify-between text-left font-normal data-[empty=true]:text-muted-foreground">
+        className="w-[212px] justify-between text-left font-normal data-[empty=true]:text-muted-foreground my-10">
         <Link to="/">
             <ArrowLeft className="mr-2 h-4 w-4" />
         </Link>
         </Button>
+      
       <div className="w-full max-w-lg rounded-2xl border bg-card text-card-foreground shadow-sm overflow-hidden">
         {/* Header (Profile/Display Name) */}
         <div className="flex flex-col items-center gap-5 px-10 pt-10 pb-8">
@@ -112,6 +112,8 @@ function ProfileView() {
         </div>
       </div>
     </div>
+    
+   
   )
 }
 

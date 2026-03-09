@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Routes, Route, Navigate } from "react-router"
 import { VendorView } from './views/VendorView';
 import { ClientView } from './views/ClientView';
+import  ProfileView  from './views/ProfileView';
 
 import {
   ResizableHandle,
@@ -34,11 +35,14 @@ function ThemeToggle() {
 function App() {
   return (
     <div className="w-full flex items-center justify-start h-screen flex-col">
-      
+      <ThemeToggle />
 
       {/* The route decides what renders below the tabs */}
       <Routes>
         <Route path="/" element={<HomeView />} />
+        <Route path ="/client" element = {<ClientView />}/>
+        <Route path ="/vendor" element = {<VendorView />}/>
+        <Route path="/profile/:username" element={<ProfileView />} />
         {/* Add future routes here, e.g.: */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

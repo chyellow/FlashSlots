@@ -20,6 +20,8 @@
     "hooks": "@/hooks"
   },
   "registries": {
-    "@abui": "https://abui.io/r/{name}.json"
+    "@abui": "https://abui.io/r/{name}.json",
+    "@react-bits": "https://reactbits.dev/r/{name}.json",
+    "@magicui": "https://magicui.design/r/{name}"
   }
 }

@@ -6,15 +6,8 @@ import { Routes, Route, Navigate } from "react-router"
 import { VendorView } from './views/VendorView';
 import { ClientView } from './views/ClientView';
 import  ProfileView  from './views/ProfileView';
-
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable"
-
 import { getTheme, applyTheme } from "@/lib/theme"
-import HomeView from './views/HomeView';
+
 
 function ThemeToggle() {
   const [theme, setTheme] = useState(getTheme())

@@ -139,7 +139,7 @@ curl http://localhost:8000/api/v1/profiles/client
 Navigate to the web directory:
 
 ```bash
-cd /apps/web
+cd apps/web
 ```
 
 Install dependencies 

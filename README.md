@@ -137,19 +137,26 @@ curl http://localhost:8000/api/v1/profiles/client
 
 
 Navigate to the web directory:
-```
+
+```bash
 cd /apps/web
 ```
 
-# Install dependencies 
-```
+Install dependencies 
+
+```bash
 npm i
 ```
 
-```
-# Start the frontend server:
+Start the frontend server:
+
+```bash
 npm run dev
 ```
+
+Now you can open `http://localhost:5173/` in the broswer of choice
+
+---
 
 ## Models Implementation
 

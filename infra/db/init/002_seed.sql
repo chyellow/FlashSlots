@@ -4,15 +4,13 @@ INSERT INTO accounts (email, password_hash, role)
 VALUES ('client@test.com', 'devhash', 'CLIENT'),
        ('biz@test.com', 'devhash', 'BUSINESS');
 
-INSERT INTO profiles (account_id, display_name)
-SELECT account_id, 'Test Client'
-FROM accounts
-WHERE email = 'client@test.com';
+INSERT INTO profiles (account_id, display_name, phone, city, state_region, username)
+SELECT account_id, 'Test Client', '(732) 555-0912', 'Piscataway', 'NJ', 'client'
+FROM accounts WHERE email = 'client@test.com';
 
-INSERT INTO profiles (account_id, display_name)
-SELECT account_id, 'Test Barber'
-FROM accounts
-WHERE email = 'biz@test.com';
+INSERT INTO profiles (account_id, display_name, phone, city, state_region, username)
+SELECT account_id, 'Test Barber', '(609) 254-1312', 'New Brunswick', 'NJ', 'vendor'
+FROM accounts WHERE email = 'biz@test.com';
 
 INSERT INTO businesses (owner_account_id, display_name, address_line1, city, state_region, postal_code, timezone,
                         verification_status)

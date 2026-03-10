@@ -17,6 +17,7 @@ CREATE TABLE profiles
     phone        TEXT,
     city         TEXT,
     state_region TEXT,
+    username     TEXT        UNIQUE,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

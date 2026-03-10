@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api";
 
-const MOCK = true;
+const MOCK = false;
 
 const mockProfiles = {
   vendor: {

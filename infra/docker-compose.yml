@@ -5,7 +5,9 @@ services:
       POSTGRES_USER: flashslots
       POSTGRES_PASSWORD: flashslots
       POSTGRES_DB: flashslots
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_INITDB_ARGS: "--auth-host=trust --auth-local=trust"
     ports:
-      - "5437:5432"
+      - "12345:5432"
     volumes:
       - ./db/init:/docker-entrypoint-initdb.d

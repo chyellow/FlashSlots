@@ -68,6 +68,71 @@ by using the credentials found in docker-compose.yml
 
 # PLACEHOLDER: Set up backend environment and install any necessary dependencies (e.g., Python packages, environment variables).
 
+> **Note:** The database runs on port `12345` on your host machine (mapped from container port 5432). If you need to change this, update the `ports` field in `infra/docker-compose.yml` and the `DATABASE_URL` in `services/api/.env` accordingly.
+
+---
+
+### Step 3: Set Up the Backend
+
+Navigate to the API directory:
+
+```bash
+cd services/api
+```
+
+Create and activate a Python virtual environment:
+
+```bash
+# Mac/Linux
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Windows
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Create the `.env` file from the example:
+
+```bash
+cp ../../.env.example .env
+```
+
+Open `services/api/.env` and confirm it contains:
+
+```
+DATABASE_URL=postgresql+psycopg://flashslots:flashslots@127.0.0.1:12345/flashslots
+CORS_ORIGINS=http://localhost:5173
+```
+
+Start the backend server:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+The API will be available at `http://localhost:8000`. Verify it's running:
+
+```bash
+curl http://localhost:8000/api/v1/health
+# Expected: {"status":"ok"}
+```
+
+Test the profiles endpoint:
+
+```bash
+curl http://localhost:8000/api/v1/profiles/client
+# Expected: {"profile_id":1,"display_name":"Test Client",...}
+```
+
+---
+
 ## Models Implementation
 
 Implemented the core SQLAlchemy models based on the provided database schema for the alpha release.

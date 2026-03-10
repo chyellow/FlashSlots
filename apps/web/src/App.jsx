@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import './App.css'
-import { Calendar } from './components/ui/calendar';
+import { Routes, Route, Navigate } from "react-router"
+import { VendorView } from './views/VendorView';
+import { ClientView } from './views/ClientView';
+import  HomeView  from './views/HomeView';
+import  ProfileView  from './views/ProfileView';
 import { getTheme, applyTheme } from "@/lib/theme"
+
 
 function ThemeToggle() {
   const [theme, setTheme] = useState(getTheme())
@@ -20,31 +25,22 @@ function ThemeToggle() {
 
 
 function App() {
-
-  const [date, setDate] = useState(new Date())
-
   return (
-    <div className='flex items-center justify-center h-screen flex-col'>
-      <h1 className='text-6xl'>FlashSlots</h1>
-      <h2 className='text-2xl m-2'>Alpha Release</h2>
-      <p>
-        FlashSlots is a real-time marketplace for last-minute service openings.
-        This alpha release demonstrates the foundational frontend
-        infrastructure for the product.
-      </p>
+    <div className="w-full flex items-center justify-start h-screen flex-col">
+      <ThemeToggle />
 
-       <div className='m-15'>
-        <Calendar
-    mode="single"
-    selected={date}
-    onSelect={setDate}
-    className="rounded-lg border "
-  />
-
+      {/* The route decides what renders below the tabs */}
+      <Routes>
+        <Route path="/" element={<HomeView />} />
+        <Route path ="/client" element = {<ClientView />}/>
+        <Route path ="/vendor" element = {<VendorView />}/>
+        <Route path="/profile/:username" element={<ProfileView />} />
+        {/* Add future routes here, e.g.: */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </div>
-       </div>
-       
   );
 }
+
 // https://www.abui.io/?utm_source=ui.shadcn.com&utm_medium=referral&utm_campaign=directory
 export default App;

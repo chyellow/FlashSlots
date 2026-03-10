@@ -133,6 +133,24 @@ curl http://localhost:8000/api/v1/profiles/client
 
 ---
 
+### Frontend Setup
+
+
+Navigate to the web directory:
+```
+cd /apps/web
+```
+
+# Install dependencies 
+```
+npm i
+```
+
+```
+# Start the frontend server:
+npm run dev
+```
+
 ## Models Implementation
 
 Implemented the core SQLAlchemy models based on the provided database schema for the alpha release.

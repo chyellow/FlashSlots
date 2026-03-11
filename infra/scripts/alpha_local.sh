@@ -22,7 +22,7 @@ docker compose up -d
 
 echo "==> Applying DB init script (tables + seed)..."
 # Update credentials if you changed them
-psql "postgresql://flashslots:flashslots@localhost:5432/flashslots" -f "$ROOT_DIR/infra/db/init.sql"
+psql "postgresql://flashslots:flashslots@localhost:5437/flashslots" -f "$ROOT_DIR/infra/db/init.sql"
 
 echo "==> Starting backend (FastAPI)..."
 cd "$ROOT_DIR/services/api"

@@ -1,0 +1,59 @@
+# .github/workflows/deploy-pages.yml
+# Builds the React/Vite frontend and deploys the static dist/ output to GitHub Pages.
+# IMPORTANT: This only deploys the frontend. Backend + DB are deployed elsewhere.
+#
+# You must set a GitHub Actions variable:
+#   Settings -> Secrets and variables -> Actions -> Variables
+#   Name: VITE_API_BASE_URL
+#   Value: https://YOUR_BACKEND_HOST/api/v1
+#
+# Also ensure Vite base path is correct for project pages:
+#   apps/web/vite.config.js: base: "/<REPO_NAME>/"
+
+name: Deploy web to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install deps
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Build
+        working-directory: apps/web
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/dist
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/deploy-pages@v4

@@ -177,7 +177,7 @@ The SQLAlchemy `Base` declarative class was configured so that all models inheri
 # NOTE: Documentation of your individual steps are required. The final iteration of this project will include a Makefile that aggregates all steps to achieve maximum efficiency (and grade)
 
 
-
+BACKEND RENDER URL https://flashslots.onrender.com
 
 ## DEPRECATED:
 Once all are installed the following commands can be run

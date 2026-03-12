@@ -6,6 +6,7 @@ import { ClientView } from './views/ClientView';
 import  HomeView  from './views/HomeView';
 import  ProfileView  from './views/ProfileView';
 import { getTheme, applyTheme } from "@/lib/theme"
+import PageNotFoundView from './views/PageNotFoundView';
 
 
 function ThemeToggle() {
@@ -31,12 +32,12 @@ function App() {
 
       {/* The route decides what renders below the tabs */}
       <Routes>
-        <Route path="/" element={<HomeView />} />
-        <Route path ="/client" element = {<ClientView />}/>
-        <Route path ="/vendor" element = {<VendorView />}/>
-        <Route path="/profile/:username" element={<ProfileView />} />
+        <Route path="/FlashSlots/" element={<HomeView />} />
+        <Route path ="/FlashSlots/client" element = {<ClientView />}/>
+        <Route path ="/FlashSlots/vendor" element = {<VendorView />}/>
+        <Route path="/FlashSlots/profile/:username" element={<ProfileView />} />
         {/* Add future routes here, e.g.: */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<PageNotFoundView />}/>
       </Routes>
     </div>
   );

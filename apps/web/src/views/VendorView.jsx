@@ -16,7 +16,7 @@ export function VendorView() {
       <div className="absolute top-6 left-6">
         <Button asChild variant="outline"
           className="w-[42px] justify-between text-left font-normal data-[empty=true]:text-muted-foreground">
-          <Link to="/">
+          <Link to="/FlashSlots/">
               <ArrowLeft className="mr-2 h-4 w-4" />
           </Link>
         </Button>
@@ -27,7 +27,7 @@ export function VendorView() {
       </p>
       <div className="absolute top-6 right-6">
         <Avatar asChild size="lg" className="w-48 text-md">
-          <Link to="/profile/vendor">
+          <Link to="/FlashSlots/profile/vendor">
           {/* The empty src tells the component to immediately trigger the fallback */}
           <AvatarImage src="" alt="Profile" />
           

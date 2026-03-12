@@ -42,7 +42,7 @@ function ProfileView() {
   if (error)
     return (
       <div className="w-full h-screen flex items-center justify-center text-destructive">
-        Something went wrong
+        Profile Not Found!
       </div>
     )
 
@@ -66,7 +66,7 @@ function ProfileView() {
         asChild
         variant="outline"
         className="w-[212px] justify-between text-left font-normal data-[empty=true]:text-muted-foreground my-10">
-        <Link to="/">
+        <Link to="/FlashSlots/">
             <ArrowLeft className="mr-2 h-4 w-4" />
         </Link>
         </Button>

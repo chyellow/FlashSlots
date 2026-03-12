@@ -15,13 +15,13 @@ function HomeView() {
       {/* Navigation Buttons */}
       <div className="flex gap-6 mt-4">
         <Button asChild size="lg" className="w-48 text-md">
-          <Link to="/vendor">
+          <Link to="/FlashSlots/vendor">
             Vendor Portal
           </Link>
         </Button>
         
         <Button asChild variant="outline" size="lg" className="w-48 text-md">
-          <Link to="/client">
+          <Link to="/FlashSlots/client">
             Client Portal
           </Link>
         </Button>

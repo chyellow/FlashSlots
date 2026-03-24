@@ -1,6 +1,4 @@
-import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Link } from "react-router-dom";
+import { Link } from "react-router"
 import { Button } from "@/components/ui/button";
 
 function HomeView() {
@@ -15,9 +13,7 @@ function HomeView() {
       {/* Navigation Buttons */}
       <div className="flex gap-6 mt-4">
         <Button asChild size="lg" className="w-48 text-md">
-          <Link to="/FlashSlots/vendor">
-            Vendor Portal
-          </Link>
+          <Link to="/FlashSlots/vendor">Vendor view</Link>
         </Button>
         
         <Button asChild variant="outline" size="lg" className="w-48 text-md">

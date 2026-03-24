@@ -14,7 +14,7 @@ export function ClientView() {
 
   return (
     <div className="flex flex-col items-center justify-center flex-1 p-8">
-      <div className="absolute top-6 left-6">
+      <div className="absolute left-14 top-3 sm:left-16">
         <Button asChild variant="outline"
           className="w-[42px] justify-between text-left font-normal data-[empty=true]:text-muted-foreground">
           <Link to="/FlashSlots/">

@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import './App.css'
+import { Moon, Sun } from "lucide-react"
 import { Routes, Route, Navigate } from "react-router"
-import { VendorView } from './views/VendorView';
+import { Button } from "@/components/ui/button"
+import { VendorLayout } from './views/vendor/VendorLayout';
+import { VendorAppointmentsPage } from './views/vendor/VendorAppointmentsPage';
+import { VendorPostPage } from './views/vendor/VendorPostPage';
+import { VendorAboutPage } from './views/vendor/VendorAboutPage';
+import { VendorHelpPage } from './views/vendor/VendorHelpPage';
 import { ClientView } from './views/ClientView';
 import  HomeView  from './views/HomeView';
 import  ProfileView  from './views/ProfileView';
@@ -11,34 +17,49 @@ import PageNotFoundView from './views/PageNotFoundView';
 
 function ThemeToggle() {
   const [theme, setTheme] = useState(getTheme())
+  const isDark = theme === "dark"
   return (
-    <button
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      className="size-9 border-border bg-background/90 shadow-sm backdrop-blur-sm"
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       onClick={() => {
-        const next = theme === "dark" ? "light" : "dark"
+        const next = isDark ? "light" : "dark"
         applyTheme(next)
         setTheme(next)
       }}
     >
-      Theme: {theme}
-    </button>
+      {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+    </Button>
   )
 }
 
 
 function App() {
   return (
-    <div className="w-full flex items-center justify-start h-screen flex-col">
-      <ThemeToggle />
+    <div className="relative flex min-h-screen w-full flex-col">
+      <div className="fixed top-3 left-3 z-[100]">
+        <ThemeToggle />
+      </div>
 
-      {/* The route decides what renders below the tabs */}
+      <div className="flex min-h-0 w-full flex-1 flex-col">
       <Routes>
         <Route path="/FlashSlots/" element={<HomeView />} />
         <Route path ="/FlashSlots/client" element = {<ClientView />}/>
-        <Route path ="/FlashSlots/vendor" element = {<VendorView />}/>
+        <Route path="/FlashSlots/vendor" element={<VendorLayout />}>
+          <Route index element={<Navigate to="appointments" replace />} />
+          <Route path="appointments" element={<VendorAppointmentsPage />} />
+          <Route path="post" element={<VendorPostPage />} />
+          <Route path="about" element={<VendorAboutPage />} />
+          <Route path="help" element={<VendorHelpPage />} />
+        </Route>
         <Route path="/FlashSlots/profile/:username" element={<ProfileView />} />
         {/* Add future routes here, e.g.: */}
         <Route path="*" element={<PageNotFoundView />}/>
       </Routes>
+      </div>
     </div>
   );
 }

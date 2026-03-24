@@ -4,8 +4,8 @@ const MOCK = false;
 
 const mockProfiles = {
   vendor: {
-    display_name: "Vendor",
     city: "New Brunswick",
+    display_name: "Vendor",
     state: "NJ",
     phone: "(609) 254-1312",
     avatar: "https://barbercraftsd.com/wp-content/uploads/2022/09/pexels-photo-7697401-1-scaled.jpg",

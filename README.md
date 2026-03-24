@@ -20,6 +20,11 @@ This directory contains the React frontend for the FlashSlots alpha release.
 The current version is a skeletal implementation that demonstrates the
 frontend infrastructure and project setup.
 
+there is a makefile, run the command in the root directory, have docker launched on your desktop
+```bash
+make
+```
+
 ### Prerequisites
 
 You must have the following installed:

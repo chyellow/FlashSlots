@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-set -e
-cd infra
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+echo "Starting Postgres with Docker Compose..."
+cd "$ROOT_DIR/infra"
 docker compose up -d
-echo "DB running on localhost:5432"
+
+"$ROOT_DIR/infra/scripts/db_init.sh"

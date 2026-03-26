@@ -12,7 +12,7 @@
 name: Deploy web to GitHub Pages
 on:
   push:
-    branches: ["main"]
+    branches: ["feature/fix-alpha"]
 permissions:
   contents: read
   pages: write

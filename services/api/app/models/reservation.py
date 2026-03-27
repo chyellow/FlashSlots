@@ -1,9 +1,9 @@
 from sqlalchemy import Column, BigInteger, DATETIME, ForeignKey, Enum, String, func
 from sqlalchemy.orm import relationship
-from services.api.app.db import base
-from services.api.app.models.enums import ReservationStatus
+from app.db.base import Base
+from app.models.enums import ReservationStatus
 
-class Reservation(base):
+class Reservation(Base):
     __tablename__ = "reservations"
 
     reservation_id = Column(BigInteger, primary_key=True, autoincrement=True)
@@ -20,5 +20,5 @@ class Reservation(base):
 
     #Relationships
     opening = relationship("Opening", back_populates="reservations", uselist=False)
-    client_account = relationship("Account", back_populates="reservations")
-    cancelled_by_account = relationship("Account", foreign_keys=[cancelled_by_account_id])
+    client_account = relationship("Account", back_populates="reservations", foreign_keys=[client_account_id])
+    cancelled_by_account = relationship("Account", back_populates="cancelled_reservations", foreign_keys=[cancelled_by_account_id])

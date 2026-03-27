@@ -7,6 +7,10 @@ import  HomeView  from './views/HomeView';
 import  ProfileView  from './views/ProfileView';
 import { getTheme, applyTheme } from "@/lib/theme"
 import PageNotFoundView from './views/PageNotFoundView';
+import LoginView from './views/LoginView';
+import RegisterView from './views/RegisterView';
+import { ProtectedRoute } from './components/ProtectedRoute';
+
 
 
 function ThemeToggle() {
@@ -33,9 +37,19 @@ function App() {
       {/* The route decides what renders below the tabs */}
       <Routes>
         <Route path="/FlashSlots/" element={<HomeView />} />
-        <Route path ="/FlashSlots/client" element = {<ClientView />}/>
-        <Route path ="/FlashSlots/vendor" element = {<VendorView />}/>
+        <Route path="/FlashSlots/client" element={
+        <ProtectedRoute requiredRole="CLIENT">
+          <ClientView />
+        </ProtectedRoute>
+      } />
+      <Route path="/FlashSlots/vendor" element={
+        <ProtectedRoute requiredRole="BUSINESS">
+          <VendorView />
+        </ProtectedRoute>
+      } />
         <Route path="/FlashSlots/profile/:username" element={<ProfileView />} />
+        <Route path="/FlashSlots/login" element={<LoginView />} />
+        <Route path="/FlashSlots/register" element={<RegisterView />} />
         {/* Add future routes here, e.g.: */}
         <Route path="*" element={<PageNotFoundView />}/>
       </Routes>

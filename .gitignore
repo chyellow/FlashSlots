@@ -142,3 +142,7 @@ vite.config.ts.timestamp-*
 
 __pycache__/
 *.py[cod]
+*.pyc
+*.pyo
+.venv/
+venv/

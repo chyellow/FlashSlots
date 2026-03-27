@@ -1,9 +1,9 @@
 from sqlalchemy import Column, BigInteger, DATETIME, ForeignKey, Enum, String, func
 from sqlalchemy.orm import relationship
-from services.api.app.db import base
-from services.api.app.models.enums import NotificationType
+from app.db.base import Base
+from app.models.enums import NotificationType
 
-class Notification(base):
+class Notification(Base):
     __tablename__ = "notifications"
 
     notification_id = Column(BigInteger, primary_key=True, autoincrement=True)

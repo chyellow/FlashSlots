@@ -1,9 +1,9 @@
 from sqlalchemy import Column, BigInteger, String, Boolean, Enum, ForeignKey, DATETIME, func
 from sqlalchemy.orm import relationship
-from services.api.app.db import base
-from services.api.app.models.enums import PaymentOptions, VerificationStatus
+from app.db.base import Base
+from app.models.enums import PaymentOptions, VerificationStatus
 
-class Business(base):
+class Business(Base):
     __tablename__ = "businesses"
 
     business_id = Column(BigInteger, primary_key=True, autoincrement=True)
@@ -24,7 +24,7 @@ class Business(base):
     #Relationships
     owner_account = relationship("Account", back_populates="business", uselist=False)
     openings = relationship("Opening", back_populates="business")
-    reviews = relationship("Review", back_populates="reviews", cascade="all, delete-orphan")
+    reviews = relationship("Review", back_populates="business", cascade="all, delete-orphan")
 
 
 

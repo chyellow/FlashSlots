@@ -1,8 +1,8 @@
 from sqlalchemy import Column, BigInteger, Float, ForeignKey, DATETIME, String, func
 from sqlalchemy.orm import relationship
-from services.api.app.db import base
+from app.db.base import Base
 
-class Review(base):
+class Review(Base):
     __tablename__ = "reviews"
 
     review_id = Column(BigInteger, primary_key=True, autoincrement=True)

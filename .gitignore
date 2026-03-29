@@ -142,3 +142,22 @@ vite.config.ts.timestamp-*
 
 __pycache__/
 *.py[cod]
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment
+.env
+
+# Virtual envs nested inside project
+services/api/.venv/
+services/api/app/venv/

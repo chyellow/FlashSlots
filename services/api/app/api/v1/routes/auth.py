@@ -24,7 +24,17 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
             detail="An account with that email already exists"
         )
 
-    # 2. Validate password length (bcrypt limit is 72 bytes)
+    # 2. Check if username is already taken
+    existing_username = db.query(Profile).filter(
+        Profile.username == body.username.lower()
+    ).first()
+    if existing_username:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="That username is already taken"
+        )
+
+    # 3. Validate password length
     if len(body.password.encode("utf-8")) > 72:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -35,8 +45,8 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Password must be at least 8 characters"
         )
-    
-    # 2. Create the account
+
+    # 4. Create the account
     account = Account(
         email=body.email.lower(),
         password_hash=hash_password(body.password),
@@ -44,18 +54,19 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
         status=AccountStatus.ACTIVE,
     )
     db.add(account)
-    db.flush()  # gives us account.account_id before committing
+    db.flush()
 
-    # 3. Create the profile record that goes with it
+    # 5. Create the profile with username and phone
     profile = Profile(
         account_id=account.account_id,
         display_name=body.display_name,
+        username=body.username.lower(),
+        phone=body.phone,
     )
     db.add(profile)
     db.commit()
     db.refresh(account)
 
-    # 4. Issue a token so they're logged in immediately after registering
     token = create_access_token({
         "sub": str(account.account_id),
         "role": account.role.value,
@@ -109,3 +120,53 @@ def me(current_user: Account = Depends(get_current_user)):
             "role": current_user.role.value,
             "status": current_user.status.value,
         }
+
+@router.get("/me/profile")
+def get_my_profile(
+    current_user: Account = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    profile = db.query(Profile).filter(
+        Profile.account_id == current_user.account_id
+    ).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return {
+        "account_id": current_user.account_id,
+        "display_name": profile.display_name,
+        "email": current_user.email,
+        "username": profile.username,
+        "phone": profile.phone,
+        "city": profile.city,
+        "state": profile.state_region,
+    }
+
+
+@router.patch("/me/profile")
+def update_my_profile(
+    body: dict,
+    current_user: Account = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    profile = db.query(Profile).filter(
+        Profile.account_id == current_user.account_id
+    ).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    allowed = {"phone", "city", "state_region", "display_name"}
+    for key, value in body.items():
+        if key in allowed:
+            setattr(profile, key, value)
+
+    db.commit()
+    db.refresh(profile)
+    return {
+        "account_id": current_user.account_id,
+        "display_name": profile.display_name,
+        "email": current_user.email,
+        "username": profile.username,
+        "phone": profile.phone,
+        "city": profile.city,
+        "state": profile.state_region,
+    }

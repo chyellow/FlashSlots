@@ -1,5 +1,3 @@
-// apps/web/src/views/RegisterView.jsx
-
 import { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { registerRequest } from "@/lib/auth";
@@ -7,6 +5,8 @@ import { registerRequest } from "@/lib/auth";
 export default function RegisterView() {
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("CLIENT");
@@ -18,15 +18,14 @@ export default function RegisterView() {
     setError(null);
     setLoading(true);
     try {
-      const data = await registerRequest(email, password, role, displayName);
-      // Redirect based on role after registering
+      const data = await registerRequest(email, password, role, displayName, username, phone);
       if (data.role === "BUSINESS") {
         navigate("/FlashSlots/vendor");
       } else {
         navigate("/FlashSlots/client");
       }
     } catch (err) {
-      setError(err.message);
+      setError(typeof err.message === "string" ? err.message : "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -50,7 +49,29 @@ export default function RegisterView() {
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Your name"
+              placeholder="Your full name"
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">Username</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value.toLowerCase())}
+              placeholder="yourhandle"
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">Phone</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="(555) 555-5555"
               className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>

@@ -42,14 +42,16 @@ export async function loginRequest(email, password) {
   return data;
 }
 
-export async function registerRequest(email, password, role, display_name) {
+export async function registerRequest(email, password, role, display_name, username, phone) {
   const res = await fetch(`${API_BASE}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, role, display_name }),
+    body: JSON.stringify({ email, password, role, display_name, username, phone }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "Registration failed");
+  if (!res.ok) throw new Error(
+    typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail)
+  );
   localStorage.setItem("token", data.access_token);
   localStorage.setItem("role", data.role);
   localStorage.setItem("account_id", String(data.account_id));

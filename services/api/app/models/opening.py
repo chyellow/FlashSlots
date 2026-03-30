@@ -1,9 +1,9 @@
 from sqlalchemy import Column, BigInteger, String, DATETIME, INTEGER, Numeric, ForeignKey, Enum, func, text
 from sqlalchemy.orm import relationship
-from services.api.app.db import base
-from services.api.app.models.enums import SlotStatus, PaymentOptions
+from app.db.base import Base
+from app.models.enums import SlotStatus, PaymentOptions
 
-class Opening(base):
+class Opening(Base):
     __tablename__ = "openings"
 
     opening_id = Column(BigInteger, primary_key=True, autoincrement=True)

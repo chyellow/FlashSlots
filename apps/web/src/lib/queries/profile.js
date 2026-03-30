@@ -1,4 +1,7 @@
 import { apiFetch } from "@/lib/api";
+import { getToken } from "@/lib/auth";
+
+const API_BASE = "http://localhost:8000/api/v1";
 
 const MOCK = false;
 
@@ -26,4 +29,30 @@ export const getProfile = async (username) => {
     return profile;
   }
   return apiFetch(`/profiles/${username}`);
+};
+
+export const getMyProfile = async () => {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}/auth/me/profile`, {
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) throw new Error("Could not load profile");
+  return res.json();
+};
+
+export const updateMyProfile = async (data) => {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}/auth/me/profile`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Could not update profile");
+  return res.json();
 };

@@ -1,5 +1,5 @@
 from sqlalchemy import BigInteger, Text, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 class Profile(Base):
@@ -12,3 +12,4 @@ class Profile(Base):
     city: Mapped[str | None] = mapped_column(Text)
     state_region: Mapped[str | None] = mapped_column(Text)
     username: Mapped[str | None] = mapped_column(Text, unique=True)
+    account: Mapped["Account"] = relationship("Account", back_populates="profile")  # add this

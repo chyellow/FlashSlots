@@ -36,7 +36,7 @@ function App() {
 
       {/* The route decides what renders below the tabs */}
       <Routes>
-        <Route path="/FlashSlots/" element={<HomeView />} />
+        <Route path="/FlashSlots/" element={<Navigate to="/FlashSlots/login" replace />} />
         <Route path="/FlashSlots/client" element={
         <ProtectedRoute requiredRole="CLIENT">
           <ClientView />

@@ -1,181 +1,93 @@
 # FlashSlots
-FlashSlots is a real-time marketplace for “expiring time” that helps service providers, beginning with barbers, recover revenue from last-minute cancellations by instantly advertising newly-open time slots
 
-## Repo Structure
+## Project overview
 
-- `apps/web/` — React and Vite frontend (client, vendor, and any admin UIs). Calls the backend API.
-- `services/api/` — FastAPI backend (REST endpoints, business logic, and DB access).
-    - `app/api/` — route handlers (HTTP endpoints)
-    - `app/services/` — core workflows (posting openings, holds/booking, cancellations, notifications)
-    - `app/models/` — database models
-    - `app/schemas/` — request/response DTOs (API contracts)
-    - `app/workers/` — background jobs (expire holds/openings, send notifications)
-- `infra/` — local infrastructure (e.g., Docker Compose for the database).
-- `docs/` — SDS, diagrams, and project documentation.
+**FlashSlots** is a real-time marketplace for expiring appointment time: service providers (starting with barbers) can advertise last-minute openings when clients cancel, and clients can discover, hold, and confirm those slots.
 
+**Product summary:** The app connects a web frontend to a FastAPI backend and PostgreSQL database so businesses post openings with pricing and timing, clients browse a live feed, place a short-lived hold on a slot, and confirm or cancel reservations—while background logic expires stale holds and listings that are no longer valid.
 
-## FlashSlots Frontend (Alpha)
+**Release status:** Alpha is complete. **Beta is in progress.**
 
-This directory contains the React frontend for the FlashSlots alpha release.
-The current version is a skeletal implementation that demonstrates the
-frontend infrastructure and project setup.
+**What Beta currently supports:** Business posting and managing openings; client holds using a configurable hold window (default five minutes); reservation confirm/cancel flows; profile and business records; listing and hold expiration; history-oriented data via seeded demo openings and reservations. Authentication for API access is a temporary header-based model (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)); full login/token auth is planned later.
 
-there is a makefile, run the command in the root directory, have docker launched on your desktop
-```bash
-make
-```
+## Repo structure
 
-### Prerequisites
+| Path | Purpose |
+|------|---------|
+| [`apps/web/`](apps/web/) | React + Vite frontend (client/vendor UI). Talks to the backend over HTTP. |
+| [`services/api/`](services/api/) | FastAPI REST API: routes, services, models, schemas, DB session, workers. |
+| [`infra/`](infra/) | Local infrastructure—Docker Compose for PostgreSQL and init SQL under `infra/db/init/`. |
+| [`docs/`](docs/) | Architecture, backend, database, deployment, testing, and team docs. |
 
-You must have the following installed:
-- Node.js (v18 or later recommended)
-- npm (included with Node.js)
-- Git
-- Python 3.11+ (for backend development)
-- Docker (for local infrastructure)
-- PgAdmin (optional, for database management)
+## Architecture at a glance
 
-You can verify your installation by running:
+- **Frontend:** React with Vite (`apps/web`).
+- **Backend:** FastAPI (`services/api`).
+- **Database:** PostgreSQL.
+- **Local DB:** PostgreSQL runs in Docker (see `infra/docker-compose.yml`).
+- **Deployed frontend:** GitHub Actions build static assets and deploy to **GitHub Pages** (see `.github/workflows/deploy-pages.yml`).
+- **Deployed backend and DB:** **Render** (example production API host: `https://flashslots.onrender.com`).
+
+## Quick start
+
+**Prerequisites:** Node.js (18+ recommended), npm, Python 3.11+, Docker Desktop (or compatible Docker engine), Git.
+
+From the repository root:
 
 ```bash
-node -v
-npm -v
-git -v
+make dev
 ```
 
-## Setup Guide
-The first step is to stand up the local infrastructure supported by Docker Compose and PostgreSQL.
+This runs the database, backend, and frontend concurrently (`make -j3 db backend frontend`).
 
-The following command starts the DB and any other necessary services defined in `infra/docker-compose.yml`:
-```bash
-docker compose -f infra/docker-compose.yml up -d
-```
+| What | Where |
+|------|--------|
+| Frontend dev server | [http://localhost:5173](http://localhost:5173) |
+| Backend API | [http://localhost:8000](http://localhost:8000) |
+| Interactive API docs (Swagger UI) | [http://localhost:8000/docs](http://localhost:8000/docs) |
 
-Confirm that the PostgreSQL container is running and accessible:
-```bash
-docker ps
-```
+Ensure Docker is running before `make dev` so the database container can start.
 
-See the tables and schemas loaded in from when you stood up this infrastructure:
-```bash
-docker exec -it infra-db-1 psql -U flashslots -d flashslots -c "\dt"
-```
+## Environment variables
 
-If you do not see any tables or schemas, reset volumes so init scripts can run again:
-```bash
-docker compose -f infra/docker-compose.yml down -v
-docker compose -f infra/docker-compose.yml up -d
-docker exec -it infra-db-1 psql -U flashslots -d flashslots -c "\dt"
-```
+Do not commit real secrets. Use local `.env` files or your host’s secret manager.
 
-Alternatively, instead of taking the last two steps, you can use PgAdmin to connect to the database
-by using the credentials found in docker-compose.yml 
+**Frontend (`apps/web`, build-time for Vite):**
 
-# PLACEHOLDER: Set up backend environment and install any necessary dependencies (e.g., Python packages, environment variables).
+| Variable | Purpose |
+|----------|---------|
+| `VITE_API_BASE_URL` | Base URL for API calls, including `/api/v1` path (e.g. `http://localhost:8000/api/v1` locally, or your deployed API base in production). |
 
-> **Note:** The database runs on port `12345` on your host machine (mapped from container port 5432). If you need to change this, update the `ports` field in `infra/docker-compose.yml` and the `DATABASE_URL` in `services/api/.env` accordingly.
+**Backend (`services/api`, from `.env` or environment):**
 
----
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | SQLAlchemy/Postgres connection string for the app database. |
+| `CORS_ORIGINS` | Comma-separated list of allowed browser origins (e.g. `http://localhost:5173`). |
+| `HOLD_MINUTES` | How long a hold remains valid before expiration logic applies (integer; default in code is 5 if unset). |
 
-### Step 3: Set Up the Backend
+Copy [`/.env.example`](.env.example) to `services/api/.env` when bootstrapping (the Makefile does this if missing).
 
-Navigate to the API directory:
+## How to test the app quickly
 
-```bash
-cd services/api
-```
+1. **Health (no auth):** `GET /api/v1/health` → `{"status":"ok"}`.
+2. **Database check (no auth):** `GET /api/v1/db-check` → server time and count of `OPEN` openings.
 
-Create and activate a Python virtual environment:
+**Temporary auth:** Most business and client routes expect:
 
-```bash
-# Mac/Linux
-python3 -m venv .venv
-source .venv/bin/activate
+- `X-Account-Id: 1` — seeded **client** account (`client@test.com` in seed data).
+- `X-Account-Id: 2` — seeded **business** account (`biz@test.com`).
 
-# Windows
-python -m venv .venv
-.venv\Scripts\activate
-```
+See [docs/TESTING.md](docs/TESTING.md) for curl examples.
 
-Install dependencies:
+## Links to deeper documentation
 
-```bash
-pip install -r requirements.txt
-```
-
-Create the `.env` file from the example:
-
-```bash
-cp ../../.env.example .env
-```
-
-Open `services/api/.env` and confirm it contains:
-
-```
-DATABASE_URL=postgresql+psycopg://flashslots:flashslots@127.0.0.1:12345/flashslots
-CORS_ORIGINS=http://localhost:5173
-```
-
-Start the backend server:
-
-```bash
-uvicorn app.main:app --reload
-```
-
-The API will be available at `http://localhost:8000`. Verify it's running:
-
-```bash
-curl http://localhost:8000/api/v1/health
-# Expected: {"status":"ok"}
-```
-
-Test the profiles endpoint:
-
-```bash
-curl http://localhost:8000/api/v1/profiles/client
-# Expected: {"profile_id":1,"display_name":"Test Client",...}
-```
-
----
-
-### Frontend Setup
-
-
-Navigate to the web directory:
-
-```bash
-cd apps/web
-```
-
-Install dependencies 
-
-```bash
-npm i
-```
-
-Start the frontend server:
-
-```bash
-npm run dev
-```
-
-Now you can open `http://localhost:5173/` in the broswer of choice
-
----
-
-## Models Implementation
-
-Implemented the core SQLAlchemy models based on the provided database schema for the alpha release.
-
-Each model’s attributes were aligned with the columns defined in the schema to ensure consistency with the existing database structure.
-
-Relationships were created to reflect the multiplicity between entities (one-to-one, one-to-manw) and allows SQLAlchemy to properly map associations between accounts, profiles, businesses, openings, reservations, reviews, and notifications.
-
-The relationships help simplify querying related data and allow the application logic to easily navigate between connected records in the database.
-
-The SQLAlchemy `Base` declarative class was configured so that all models inherit from the same metadata base.
-
-# NOTE: Documentation of your individual steps are required. The final iteration of this project will include a Makefile that aggregates all steps to achieve maximum efficiency (and grade)
-
-BACKEND RENDER URL https://flashslots.onrender.com
-
+| Document | Contents |
+|----------|----------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System overview, components, deployment, data flows, temporary auth, conventions. |
+| [docs/BACKEND.md](docs/BACKEND.md) | Backend layout, layers, endpoints, business logic, conventions, adding endpoints. |
+| [docs/DB.md](docs/DB.md) | Schema, constraints, seed data, lifecycle, query examples. |
+| [docs/BETA_STATUS.md](docs/BETA_STATUS.md) | Beta goals, done/in progress/deferred, issues, next tasks. |
+| [docs/TESTING.md](docs/TESTING.md) | Local boot, smoke tests, curl examples, auth header, common failures. |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | GitHub Pages, Render backend/Postgres, env vars, verification. |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Branching, code organization, commits, pre-merge checks. |

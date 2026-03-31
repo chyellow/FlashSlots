@@ -1,6 +1,6 @@
 from sqlalchemy import Column, BigInteger, Float, ForeignKey, DATETIME, String, func
 from sqlalchemy.orm import relationship
-from app.db.base import Base
+from services.api.app.db.base import Base
 
 class Review(Base):
     __tablename__ = "reviews"

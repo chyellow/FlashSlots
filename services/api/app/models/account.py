@@ -1,7 +1,7 @@
 from sqlalchemy import Column, BigInteger, String, Enum, DATETIME, func
 from sqlalchemy.orm import relationship
-from app.db.base import Base
-from app.models.enums import AccountType, AccountStatus
+from services.api.app.db.base import Base
+from services.api.app.models.enums import AccountType, AccountStatus
 
 class Account(Base):
     __tablename__ = "accounts"

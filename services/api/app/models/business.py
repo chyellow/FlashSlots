@@ -1,7 +1,7 @@
 from sqlalchemy import Column, BigInteger, String, Boolean, Enum, ForeignKey, DATETIME, func
 from sqlalchemy.orm import relationship
-from app.db.base import Base
-from app.models.enums import PaymentOptions, VerificationStatus
+from services.api.app.db.base import Base
+from services.api.app.models.enums import PaymentOptions, VerificationStatus
 
 class Business(Base):
     __tablename__ = "businesses"

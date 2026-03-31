@@ -1,7 +1,7 @@
 from sqlalchemy import Column, BigInteger, DATETIME, ForeignKey, Enum, String, func
 from sqlalchemy.orm import relationship
-from app.db.base import Base
-from app.models.enums import ReservationStatus
+from services.api.app.db.base import Base
+from services.api.app.models.enums import ReservationStatus
 
 class Reservation(Base):
     __tablename__ = "reservations"

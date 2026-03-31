@@ -1,6 +1,7 @@
 from sqlalchemy import BigInteger, Text, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.db.base import Base
+from services.api.app.db.base import Base
+from services.api.app.models.account import Account
 
 class Profile(Base):
     __tablename__ = "profiles"

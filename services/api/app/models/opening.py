@@ -1,7 +1,7 @@
 from sqlalchemy import Column, BigInteger, String, DATETIME, INTEGER, Numeric, ForeignKey, Enum, func, text
 from sqlalchemy.orm import relationship
-from app.db.base import Base
-from app.models.enums import SlotStatus, PaymentOptions
+from services.api.app.db.base import Base
+from services.api.app.models.enums import SlotStatus, PaymentOptions
 
 class Opening(Base):
     __tablename__ = "openings"

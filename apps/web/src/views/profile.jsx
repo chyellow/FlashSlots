@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react"
-import { Link } from "react-router"
+import { Link, useNavigate } from "react-router"
 import { getMyProfile, updateMyProfile } from "@/lib/queries/profile"
+import { logout } from "@/lib/auth"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 function ProfileView() {
+  const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -47,6 +49,11 @@ function ProfileView() {
     }
   }
 
+  function handleLogout() {
+    logout()
+    navigate("/FlashSlots/")
+  }
+
   const initials = profile?.display_name
     ? profile.display_name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
     : "?"
@@ -77,11 +84,18 @@ function ProfileView() {
 
   return (
     <div className="w-full h-screen flex flex-col items-center justify-center px-4">
-      <div className="absolute top-6 left-6">
+      <div className="absolute top-20 left-6">
         <Button asChild variant="outline" className="w-[42px]">
           <Link to={-1}>
             <ArrowLeft className="h-4 w-4" />
           </Link>
+        </Button>
+      </div>
+
+      <div className="absolute top-20 right-6">
+        <Button variant="outline" onClick={handleLogout} className="gap-2">
+          <LogOut className="h-4 w-4" />
+          Log out
         </Button>
       </div>
 
@@ -107,13 +121,11 @@ function ProfileView() {
         {/* Fields */}
         <div className="px-10 py-8 space-y-5">
 
-          {/* Email — read only */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-muted-foreground">Email</label>
             <p className="text-sm">{profile.email}</p>
           </div>
 
-          {/* Phone — editable */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-muted-foreground">Phone</label>
             <input
@@ -125,7 +137,6 @@ function ProfileView() {
             />
           </div>
 
-          {/* City — editable */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-muted-foreground">City</label>
             <input
@@ -137,7 +148,6 @@ function ProfileView() {
             />
           </div>
 
-          {/* State — editable */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-muted-foreground">State</label>
             <input

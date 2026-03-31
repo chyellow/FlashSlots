@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Availability } from "@/components/availability"
+import { Availability } from "@/components/ui/availability"
 
 export function VendorPostPage() {
   const [data, setData] = useState([])

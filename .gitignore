@@ -139,8 +139,6 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 /services/api/.venv/
 
-
-__pycache__/
 *.py[cod]
 *.pyc
 *.pyo
@@ -161,3 +159,8 @@ __pycache__/
 # Virtual envs nested inside project
 services/api/.venv/
 services/api/app/venv/
+
+# IDE
+.vscode/
+
+**/.DS_Store

@@ -1,24 +1,27 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+
+from app.api.deps import get_current_account
 from app.db.session import get_db
-from app.models.profile import Profile
-from app.schemas.profile import ProfileResponse
+from app.models import Account
+from app.schemas.profiles import ProfileRead, ProfileUpdate
+from app.services.profile_service import get_my_profile, update_my_profile
 
-router = APIRouter()
+router = APIRouter(prefix="/profiles", tags=["profiles"])
 
-@router.get("/profiles/{username}", response_model=ProfileResponse)
-def get_profile(username: str, db: Session = Depends(get_db)):
-    profile = (
-        db.query(Profile)
-        .filter(Profile.username == username.lower())
-        .first()
-    )
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-    return ProfileResponse(
-        profile_id=profile.profile_id,
-        display_name=profile.display_name,
-        phone=profile.phone,
-        city=profile.city,
-        state=profile.state_region,
-    )
+
+@router.get("/me", response_model=ProfileRead)
+def read_my_profile(
+        db: Session = Depends(get_db),
+        account: Account = Depends(get_current_account),
+):
+    return get_my_profile(db, account)
+
+
+@router.patch("/me", response_model=ProfileRead)
+def patch_my_profile(
+        payload: ProfileUpdate,
+        db: Session = Depends(get_db),
+        account: Account = Depends(get_current_account),
+):
+    return update_my_profile(db, account, payload)

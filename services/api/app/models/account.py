@@ -1,24 +1,44 @@
-from sqlalchemy import Column, BigInteger, String, Enum, DATETIME, func
-from sqlalchemy.orm import relationship
-from app.db.base import Base
-from app.models.enums import AccountType, AccountStatus
+from datetime import datetime
+
+from sqlalchemy import BigInteger, DateTime, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import func
+
+from app.models.base import Base
+
 
 class Account(Base):
     __tablename__ = "accounts"
 
-    account_id = Column(BigInteger, primary_key=True, autoincrement=True)
-    email = Column(String, unique=True, nullable=False)
-    password_hash = Column(String, nullable=False)
-    status = Column(Enum(AccountStatus), nullable=False, default=AccountStatus.ACTIVE)
-    role = Column(Enum(AccountType), nullable=False)
-    created_at = Column(DATETIME, server_default=func.now())
-    updated_at = Column(DATETIME, server_default=func.now(), onupdate=func.now())
+    account_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    email: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="ACTIVE")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
 
-    #Relationships
     profile = relationship("Profile", back_populates="account", uselist=False)
-    business = relationship("Business", back_populates="owner_account", uselist=False)
-    openings_listed = relationship("Opening", back_populates="posted_by_account")
-    reservations = relationship("Reservation", back_populates="client_account", foreign_keys="[Reservation.client_account_id]")
-    cancelled_reservations = relationship("Reservation", back_populates="cancelled_by_account", foreign_keys="[Reservation.cancelled_by_account_id]")
-    notifications = relationship("Notification", back_populates="recipient")
-    reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan", )
+    business = relationship("Business", back_populates="owner", uselist=False)
+
+    # reservations where this account is the client
+    reservations = relationship(
+        "Reservation",
+        back_populates="client",
+        foreign_keys="Reservation.client_account_id",
+    )
+
+    # reservations this account cancelled
+    cancelled_reservations = relationship(
+        "Reservation",
+        back_populates="cancelled_by",
+        foreign_keys="Reservation.cancelled_by_account_id",
+    )

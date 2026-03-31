@@ -5,5 +5,6 @@ class Settings(BaseSettings):
 
     database_url: str
     cors_origins: str = "http://localhost:5173"
+    hold_minutes: int = 5
 
 settings = Settings()

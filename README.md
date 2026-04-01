@@ -21,12 +21,7 @@
 
 ## Architecture at a glance
 
-- **Frontend:** React with Vite (`apps/web`).
-- **Backend:** FastAPI (`services/api`).
-- **Database:** PostgreSQL.
-- **Local DB:** PostgreSQL runs in Docker (see `infra/docker-compose.yml`).
-- **Deployed frontend:** GitHub Actions build static assets and deploy to **GitHub Pages** (see `.github/workflows/deploy-pages.yml`).
-- **Deployed backend and DB:** **Render** (example production API host: `https://flashslots.onrender.com`).
+> **Note:** The database runs on port `5432` on your host machine (mapped from container port 5432). If you need to change this, update the `ports` field in `infra/docker-compose.yml` and the `DATABASE_URL` in `services/api/.env` accordingly.
 
 ## Quick start
 

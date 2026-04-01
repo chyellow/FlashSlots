@@ -8,6 +8,6 @@ services:
       POSTGRES_HOST_AUTH_METHOD: trust
       POSTGRES_INITDB_ARGS: "--auth-host=trust --auth-local=trust"
     ports:
-      - "12345:5432"
+      - "5437:5432"
     volumes:
       - ./db/init:/docker-entrypoint-initdb.d

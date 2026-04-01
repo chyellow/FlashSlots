@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DB_URL="postgresql://flashslots:flashslots@localhost:12345/flashslots"
+DB_URL="postgresql://flashslots:flashslots@localhost:5432/flashslots"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 echo "Waiting for Postgres to be ready..."

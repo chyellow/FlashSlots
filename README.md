@@ -73,7 +73,7 @@ by using the credentials found in docker-compose.yml
 
 # PLACEHOLDER: Set up backend environment and install any necessary dependencies (e.g., Python packages, environment variables).
 
-> **Note:** The database runs on port `12345` on your host machine (mapped from container port 5432). If you need to change this, update the `ports` field in `infra/docker-compose.yml` and the `DATABASE_URL` in `services/api/.env` accordingly.
+> **Note:** The database runs on port `5432` on your host machine (mapped from container port 5432). If you need to change this, update the `ports` field in `infra/docker-compose.yml` and the `DATABASE_URL` in `services/api/.env` accordingly.
 
 ---
 
@@ -112,7 +112,7 @@ cp ../../.env.example .env
 Open `services/api/.env` and confirm it contains:
 
 ```
-DATABASE_URL=postgresql+psycopg://flashslots:flashslots@127.0.0.1:12345/flashslots
+DATABASE_URL=postgresql+psycopg://flashslots:flashslots@127.0.0.1:5437/flashslots
 CORS_ORIGINS=http://localhost:5173
 ```
 

@@ -75,6 +75,7 @@ def place_hold(db: Session, account: Account, opening_id: int) -> Reservation:
 
     now = _now()
 
+    db.refresh(opening)
     if opening.status != "OPEN":
         raise HTTPException(status_code=409, detail="Opening is not available")
 

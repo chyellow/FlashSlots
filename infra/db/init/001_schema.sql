@@ -154,15 +154,6 @@ CREATE INDEX IF NOT EXISTS idx_res_status_created
     ON reservations (status, created_at);
 
 -- =========================
--- enforce unique reservation per opening for active reservations
--- =========================
-DROP INDEX IF EXISTS uq_opening_active_reservations;
-
-CREATE UNIQUE INDEX uq_opening_active_reservations
-    ON reservations(opening_id)
-    WHERE status IN ('HOLD', 'CONFIRMED');
-
--- =========================
 -- updated_at triggers
 -- =========================
 DROP TRIGGER IF EXISTS trg_accounts_set_updated_at ON accounts;

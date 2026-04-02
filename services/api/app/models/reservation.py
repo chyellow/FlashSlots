@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import UNIQUE
 
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -14,6 +15,7 @@ class Reservation(Base):
     opening_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("openings.opening_id", ondelete="CASCADE"),
+        unique=True,
         nullable=False,
     )
     client_account_id: Mapped[int] = mapped_column(

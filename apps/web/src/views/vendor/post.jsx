@@ -16,7 +16,7 @@ export function VendorPostPage() {
         <Availability
           value={data}
           onValueChange={setData}
-          startTime={0}
+          startTime={5}
           endTime={24}
           useAmPm={true}
           timeIncrements={15}

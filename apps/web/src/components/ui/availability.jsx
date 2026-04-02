@@ -106,6 +106,14 @@ function useCalendarCreation({
   const [isCreating, setIsCreating] = React.useState(false)
   const [creationStart, setCreationStart] = React.useState(null)
   const [currentMouseY, setCurrentMouseY] = React.useState(null)
+  const [pendingConfirmation, setPendingConfirmation] = React.useState(null)
+  const [showModal, setShowModal] = React.useState(false)
+  const [modalData, setModalData] = React.useState({
+    name: '',
+    duration: '',
+    employee: '',
+    discount: ''
+  })
 
   const totalMinutes = (endTime - startTime) * 60
   const startOffset = startTime * 60
@@ -174,7 +182,7 @@ function useCalendarCreation({
       }
 
       if (finalEnd > finalStart) {
-        onCreate(colIndex, finalStart, finalEnd)
+        setPendingConfirmation({ start: finalStart, end: finalEnd })
       }
 
       setIsCreating(false)
@@ -191,14 +199,52 @@ function useCalendarCreation({
     window.addEventListener("pointerup", handlePointerUp)
   }
 
+  const confirmCreation = () => {
+    if (pendingConfirmation) {
+      setShowModal(true)
+    }
+  }
+
+  const cancelCreation = () => {
+    setPendingConfirmation(null)
+  }
+
+  const handleModalSubmit = (e) => {
+    e.preventDefault()
+    
+    if (!modalData.name.trim() || !modalData.duration) {
+      return // Don't submit if mandatory fields are empty
+    }
+    
+    if (pendingConfirmation) {
+      onCreate(colIndex, pendingConfirmation.start, pendingConfirmation.end, modalData)
+      setPendingConfirmation(null)
+      setShowModal(false)
+      setModalData({ name: '', duration: '', employee: '', discount: '' })
+    }
+  }
+
+  const handleModalCancel = () => {
+    setShowModal(false)
+    setModalData({ name: '', duration: '', employee: '', discount: '' })
+  }
+
   return {
     isCreating,
     creationStart,
     currentMouseY,
+    pendingConfirmation,
+    showModal,
+    modalData,
+    setModalData,
     totalMinutes,
     startOffset,
     sortedConstraints,
     handlePointerDown,
+    confirmCreation,
+    cancelCreation,
+    handleModalSubmit,
+    handleModalCancel,
   }
 }
 
@@ -257,13 +303,17 @@ export function Availability({
     updateValue(newValue, isComplete)
   }
 
-  const handleCreate = (dayIndex, startMinutes, endMinutes) => {
+  const handleCreate = (dayIndex, startMinutes, endMinutes, modalData = {}) => {
     const newSpan = {
       id: generateId(),
       week_day: dayIndex,
       start_time: minutesToTime(startMinutes),
       end_time: minutesToTime(endMinutes),
       active: true,
+      name: modalData.name || '',
+      duration: modalData.duration || '',
+      employee: modalData.employee || '',
+      discount: modalData.discount || '',
     }
     updateValue([...internalValue, newSpan], true)
   }
@@ -433,7 +483,7 @@ export function Availability({
         <div
           suppressHydrationWarning
           className={cn(
-            "flex h-[600px] w-full flex-col overflow-hidden rounded-md border bg-background select-none touch-none",
+            "flex h-[1200px] w-full flex-col overflow-hidden rounded-md border bg-background select-none touch-none",
             className
           )}>
           {/* Header */}
@@ -551,7 +601,7 @@ function DayColumn({
     setNodeRef(node)
   }
 
-  const { isCreating, creationStart, currentMouseY, totalMinutes, startOffset, sortedConstraints, handlePointerDown } =
+  const { isCreating, creationStart, currentMouseY, pendingConfirmation, showModal, modalData, setModalData, totalMinutes, startOffset, sortedConstraints, handlePointerDown, confirmCreation, cancelCreation, handleModalSubmit, handleModalCancel } =
     useCalendarCreation({
       containerRef,
       timeIncrements,
@@ -677,7 +727,122 @@ function DayColumn({
           style={{
             top: `${((Math.min(creationStart, currentMouseY) - startOffset) / totalMinutes) * 100}%`,
             height: `${(Math.abs(currentMouseY - creationStart) / totalMinutes) * 100}%`,
-          }} />
+          }}>
+          <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded shadow-md whitespace-nowrap">
+            {formatDisplayTime(minutesToTime(Math.min(creationStart, currentMouseY)), useAmPm)} - {formatDisplayTime(minutesToTime(Math.max(creationStart, currentMouseY)), useAmPm)}
+          </div>
+        </div>
+      )}
+      {pendingConfirmation && (
+        <div
+          className="absolute left-0 right-0 mx-1 rounded bg-primary/40 border-2 border-primary z-30"
+          style={{
+            top: `${((pendingConfirmation.start - startOffset) / totalMinutes) * 100}%`,
+            height: `${((pendingConfirmation.end - pendingConfirmation.start) / totalMinutes) * 100}%`,
+          }}>
+          <div className="absolute top-full mt-1 left-1/2 transform -translate-x-1/2 flex gap-1">
+            <div className="bg-primary text-primary-foreground text-xs px-2 py-1 rounded shadow-md whitespace-nowrap">
+              {formatDisplayTime(minutesToTime(pendingConfirmation.start), useAmPm)} - {formatDisplayTime(minutesToTime(pendingConfirmation.end), useAmPm)}
+            </div>
+          </div>
+          <div className="absolute top-full mt-8 left-1/2 transform -translate-x-1/2 flex gap-1">
+            <button
+              onClick={confirmCreation}
+              className="w-6 h-6 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md"
+              title="Confirm"
+            >
+              ✓
+            </button>
+            <button
+              onClick={cancelCreation}
+              className="w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md"
+              title="Cancel"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Appointment Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background border rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold mb-4">Create Appointment</h3>
+            <form onSubmit={handleModalSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Appointment Name *
+                </label>
+                <input
+                  type="text"
+                  value={modalData.name || ''}
+                  onChange={(e) => setModalData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Duration (minutes before start time) *
+                </label>
+                <select
+                  value={modalData.duration || ''}
+                  onChange={(e) => setModalData(prev => ({ ...prev, duration: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  required
+                >
+                  <option value="">Select duration</option>
+                  <option value="0">Until start time</option>
+                  <option value="5">5 minutes</option>
+                  <option value="10">10 minutes</option>
+                  <option value="15">15 minutes</option>
+                  <option value="20">20 minutes</option>
+                  <option value="30">30 minutes</option>
+                  <option value="40">40 minutes</option>
+                  <option value="50">50 minutes</option>
+                  <option value="60">60 minutes</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Employee (optional)
+                </label>
+                <input
+                  type="text"
+                  value={modalData.employee || ''}
+                  onChange={(e) => setModalData(prev => ({ ...prev, employee: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Discount (optional)
+                </label>
+                <input
+                  type="text"
+                  value={modalData.discount || ''}
+                  onChange={(e) => setModalData(prev => ({ ...prev, discount: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div className="flex gap-2 pt-4">
+                <button
+                  type="submit"
+                  className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90"
+                >
+                  Create
+                </button>
+                <button
+                  type="button"
+                  onClick={handleModalCancel}
+                  className="flex-1 bg-muted text-muted-foreground px-4 py-2 rounded-md hover:bg-muted/90"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -900,6 +1065,10 @@ function TimeSpanCard({
       className="h-full flex flex-col relative items-between text-foreground timespan-inner-area pointer-events-none">
       <div className="flex flex-col gap-0.5 text-inherit">
         <p className="font-semibold leading-none">{formatDisplayTime(span.start_time, useAmPm)}</p>
+        {/* Show appointment name if it exists */}
+        {span.name && (
+          <p className="text-xs font-medium truncate">{span.name}</p>
+        )}
         {/* Only show duration when the slot is tall enough (2h+) */}
         {calculatedDuration >= 2 && (
           <div className="flex items-center gap-0.5">

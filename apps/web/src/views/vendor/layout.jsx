@@ -27,13 +27,6 @@ export function VendorLayout() {
             <NavLink to="help" className={navClass}>
               Help
             </NavLink>
-            <Link
-              to="/profile"
-              state={{ returnTo: "/vendor/appointments" }}
-              className="inline-flex items-center border-b-2 border-transparent px-2 pb-3 pt-1 text-sm font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground"
-            >
-              Profile
-            </Link>
           </nav>
         </div>
       </header>

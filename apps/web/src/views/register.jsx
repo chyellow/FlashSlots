@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { register } from "../api/auth.js";
+import { useAuth } from "../context/AuthContext";
 
 export default function RegisterView() {
   const navigate = useNavigate();
+  const { registerAction } = useAuth();
+
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
@@ -19,10 +21,10 @@ export default function RegisterView() {
     setLoading(true);
 
     try {
-      const data = await register({
+      const data = await registerAction({
         email,
         password,
-        role: role === "BUSINESS" ? "BUSINESS" : "CLIENT",
+        role,
         display_name: displayName,
         username,
         phone,
@@ -51,7 +53,7 @@ export default function RegisterView() {
           </div>
         )}
 
-        <div className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium">Display name</label>
             <input
@@ -60,6 +62,7 @@ export default function RegisterView() {
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Your full name"
               className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
             />
           </div>
 
@@ -93,6 +96,7 @@ export default function RegisterView() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
             />
           </div>
 
@@ -104,6 +108,7 @@ export default function RegisterView() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
             />
           </div>
 
@@ -111,6 +116,7 @@ export default function RegisterView() {
             <label className="text-sm font-medium">I am a...</label>
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => setRole("CLIENT")}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
                   role === "CLIENT"
@@ -121,6 +127,7 @@ export default function RegisterView() {
                 Client
               </button>
               <button
+                type="button"
                 onClick={() => setRole("BUSINESS")}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
                   role === "BUSINESS"
@@ -134,13 +141,13 @@ export default function RegisterView() {
           </div>
 
           <button
-            onClick={handleSubmit}
+            type="submit"
             disabled={loading}
             className="mt-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg text-sm disabled:opacity-50"
           >
             {loading ? "Creating account..." : "Create account"}
           </button>
-        </div>
+        </form>
 
         <p className="mt-6 text-sm text-center text-gray-500">
           Already have an account?{" "}

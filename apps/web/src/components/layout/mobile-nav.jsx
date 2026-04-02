@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils"
 import { useState } from "react"
-import { Link } from "react-router"
+import { Link } from "react-router-dom"
 import { Portal, PortalBackdrop } from "@/components/ui/portal"
 import { Button } from "@/components/ui/button"
 import { XIcon, MenuIcon } from "lucide-react"
@@ -38,12 +38,12 @@ export function MobileNav() {
           >
             <div className="mt-4 flex flex-col gap-2.5">
               <Button asChild className="w-full" variant="outline">
-                <Link to="/FlashSlots/login" onClick={() => setOpen(false)}>
+                <Link to="/login" onClick={() => setOpen(false)}>
                   Sign In
                 </Link>
               </Button>
               <Button asChild className="w-full">
-                <Link to="/FlashSlots/register" onClick={() => setOpen(false)}>
+                <Link to="/register" onClick={() => setOpen(false)}>
                   Get Started
                 </Link>
               </Button>

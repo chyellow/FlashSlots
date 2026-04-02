@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router";
-import { registerRequest } from "@/lib/auth";
+import { useNavigate, Link } from "react-router-dom";
+import { register } from "../api/auth.js";
 
 export default function RegisterView() {
   const navigate = useNavigate();
@@ -18,11 +18,11 @@ export default function RegisterView() {
     setError(null);
     setLoading(true);
     try {
-      const data = await registerRequest(email, password, role, displayName, username, phone);
+      const data = await register(email, password, role, displayName, username, phone);
       if (data.role === "BUSINESS") {
-        navigate("/FlashSlots/vendor");
+        navigate("/vendor");
       } else {
-        navigate("/FlashSlots/client");
+        navigate("/client");
       }
     } catch (err) {
       setError(typeof err.message === "string" ? err.message : "Registration failed");
@@ -135,7 +135,7 @@ export default function RegisterView() {
 
         <p className="mt-6 text-sm text-center text-gray-500">
           Already have an account?{" "}
-          <Link to="/FlashSlots/login" className="text-blue-600 hover:underline">
+          <Link to="/login" className="text-blue-600 hover:underline">
             Log in
           </Link>
         </p>

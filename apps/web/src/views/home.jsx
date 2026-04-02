@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Link } from "react-router"
+import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Zap, ArrowRight } from "lucide-react"
 
@@ -121,7 +121,7 @@ export default function HomeView() {
 
         <Reveal delay={420} className="mt-9">
           <Button asChild size="lg" className="h-11 gap-2 px-7 text-[14px] font-semibold">
-            <Link to="/FlashSlots/register">
+            <Link to="/register">
               Get Started For Free
               <ArrowRight className="size-4" />
             </Link>

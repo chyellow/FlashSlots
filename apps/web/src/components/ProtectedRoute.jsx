@@ -1,18 +1,27 @@
-import { Navigate } from "react-router";
-import { isLoggedIn, getRole } from "@/lib/auth";
+import { Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 export function ProtectedRoute({ children, requiredRole }) {
-  // Not logged in at all → send to login
-  if (!isLoggedIn()) {
-    return <Navigate to="/FlashSlots/login" replace />;
+  const { user, isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return <div className="p-6">Loading...</div>;
   }
 
-  // Logged in but wrong role → send them to their correct view
-  if (requiredRole && getRole() !== requiredRole) {
-    const role = getRole();
-    if (role === "BUSINESS") return <Navigate to="/FlashSlots/vendor" replace />;
-    if (role === "CLIENT") return <Navigate to="/FlashSlots/client" replace />;
-    return <Navigate to="/FlashSlots/login" replace />;
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (requiredRole && user.role !== requiredRole) {
+    if (user.role === "BUSINESS") {
+      return <Navigate to="/vendor" replace />;
+    }
+
+    if (user.role === "CLIENT") {
+      return <Navigate to="/client" replace />;
+    }
+
+    return <Navigate to="/login" replace />;
   }
 
   return children;

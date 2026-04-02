@@ -193,7 +193,7 @@ def cancel_reservation(
     reservation.cancelled_by_account_id = account.account_id
     reservation.cancellation_reason = reason
 
-    reservation.hold_expires_at = None
+    reservation.hold_expires_at = _now() #Fix Bug Hopefully
 
     if opening:
         if opening.starts_at > now and opening.listing_expires_at > now:

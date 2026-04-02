@@ -14,7 +14,6 @@ class Reservation(Base):
     opening_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("openings.opening_id", ondelete="CASCADE"),
-        unique=True,
         nullable=False,
     )
     client_account_id: Mapped[int] = mapped_column(

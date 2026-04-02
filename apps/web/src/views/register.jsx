@@ -22,7 +22,7 @@ export default function RegisterView() {
       const data = await register({
         email,
         password,
-        role: role === "Business" ? "BUSINESS" : "CLIENT",
+        role: role === "BUSINESS" ? "BUSINESS" : "CLIENT",
         display_name: displayName,
         username,
         phone,

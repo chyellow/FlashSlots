@@ -75,7 +75,7 @@ def place_hold(db: Session, account: Account, opening_id: int) -> Reservation:
 
     now = _now()
 
-    # reuse a previously cancelled/expired reservation for this opening
+    # reuse a previously cancelled/expired reservation for this opening #Fixed res hold bug
     existing_reservation = (
         db.query(Reservation)
         .filter(

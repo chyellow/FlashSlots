@@ -614,6 +614,9 @@ function DayColumn({
       isDayDisabled,
     })
 
+  const modalFieldClassName =
+    "w-full rounded-md border border-input bg-background px-3 py-2 font-sans text-foreground shadow-xs focus:outline-none focus:ring-2 focus:ring-primary"
+
   const showGhost = context?.activeId && context.overDayIndex === dayIndex && containerRef.current && !isDayDisabled
 
   const ghostStyle = React.useMemo(() => {
@@ -766,7 +769,7 @@ function DayColumn({
       {/* Appointment Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background border rounded-lg p-6 w-full max-w-md mx-4">
+          <div className="bg-background text-foreground border border-border rounded-lg p-6 w-full max-w-md mx-4 shadow-xl">
             <h3 className="text-lg font-semibold mb-4">Create Appointment</h3>
             <form onSubmit={handleModalSubmit} className="space-y-4">
               <div>
@@ -777,7 +780,7 @@ function DayColumn({
                   type="text"
                   value={modalData.name || ''}
                   onChange={(e) => setModalData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={modalFieldClassName}
                   required
                 />
               </div>
@@ -788,7 +791,7 @@ function DayColumn({
                 <select
                   value={modalData.duration || ''}
                   onChange={(e) => setModalData(prev => ({ ...prev, duration: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={modalFieldClassName}
                   required
                 >
                   <option value="">Select duration</option>
@@ -811,7 +814,7 @@ function DayColumn({
                   type="text"
                   value={modalData.employee || ''}
                   onChange={(e) => setModalData(prev => ({ ...prev, employee: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={modalFieldClassName}
                 />
               </div>
               <div>
@@ -822,7 +825,7 @@ function DayColumn({
                   type="text"
                   value={modalData.discount || ''}
                   onChange={(e) => setModalData(prev => ({ ...prev, discount: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  className={modalFieldClassName}
                 />
               </div>
               <div className="flex gap-2 pt-4">

@@ -75,6 +75,35 @@ def place_hold(db: Session, account: Account, opening_id: int) -> Reservation:
 
     now = _now()
 
+    # reuse a previously cancelled/expired reservation for this opening
+    existing_reservation = (
+        db.query(Reservation)
+        .filter(
+            Reservation.opening_id == opening.opening_id,
+            Reservation.status.in_(["CANCELLED_BY_CLIENT", "CANCELLED_BY_BUSINESS", "HOLD_EXPIRED"])
+        )
+        .with_for_update()
+        .first()
+    )
+
+    if existing_reservation:
+        existing_reservation.client_account_id = account.account_id
+        existing_reservation.status = "HOLD"
+        existing_reservation.hold_expires_at = now + timedelta(minutes=settings.hold_minutes)
+        existing_reservation.confirmed_at = None
+        existing_reservation.cancelled_at = None
+        existing_reservation.cancelled_by_account_id = None
+        existing_reservation.cancellation_reason = None
+
+        opening.status = "ON_HOLD"
+        opening.version += 1
+
+        db.add(existing_reservation)
+        db.add(opening)
+        db.commit()
+        db.refresh(existing_reservation)
+        return existing_reservation
+
     if opening.status != "OPEN":
         raise HTTPException(status_code=409, detail="Opening is not available")
 

@@ -25,7 +25,7 @@ export function ClientLayout() {
               Help
             </NavLink>
             <Link
-              to="/profile/client"
+              to="/profile"
               state={{ returnTo: "/client" }}
               className="inline-flex items-center border-b-2 border-transparent px-2 pb-3 pt-1 text-sm font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground"
             >

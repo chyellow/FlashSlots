@@ -33,7 +33,7 @@ export const getProfile = async (username) => {
 
 export const getMyProfile = async () => {
   const token = getToken();
-  const res = await fetch(`${API_BASE}/auth/me/profile`, {
+  const res = await fetch(`${API_BASE}/profiles/me`, {
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`,
@@ -45,7 +45,7 @@ export const getMyProfile = async () => {
 
 export const updateMyProfile = async (data) => {
   const token = getToken();
-  const res = await fetch(`${API_BASE}/auth/me/profile`, {
+  const res = await fetch(`${API_BASE}/profiles/me`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",

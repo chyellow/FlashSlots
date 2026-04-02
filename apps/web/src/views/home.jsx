@@ -25,7 +25,7 @@ function CalendarMock() {
   const days = ["M", "T", "W", "T", "F", "S", "S"]
   return (
     <div className="w-56 rounded-xl border border-border/50 bg-card p-5 shadow-md sm:w-60">
-      <p className="mb-4 text-[13px] font-semibold">March 2026</p>
+      <p className="mb-4 text-[13px] font-semibold">April 2026</p>
       <div className="grid grid-cols-7 gap-y-1.5">
         {days.map((d, i) => (
           <span
@@ -36,12 +36,12 @@ function CalendarMock() {
           </span>
         ))}
         {}
-        {Array.from({ length: 6 }, (_, i) => (
+        {Array.from({ length:  2}, (_, i) => (
           <span key={`p-${i}`} />
         ))}
-        {Array.from({ length: 31 }, (_, i) => {
+        {Array.from({ length: 30 }, (_, i) => {
           const day = i + 1
-          const isToday = day === 30
+          const isToday = day === 7
           return (
             <span
               key={day}
@@ -64,13 +64,13 @@ function CalendarMock() {
 function SlotsMock() {
   const slots = [
     { time: "9:00 AM", selected: false },
-    { time: "10:30 AM", selected: true },
+    { time: "10:20 AM", selected: true },
     { time: "1:00 PM", selected: false },
     { time: "3:30 PM", selected: false },
   ]
   return (
     <div className="w-48 rounded-xl border border-border/50 bg-card p-5 shadow-md sm:w-52">
-      <p className="text-[13px] font-semibold">Mon, Mar 30</p>
+      <p className="text-[13px] font-semibold">Tues, Apr 07</p>
       <p className="mb-4 text-[11px] text-muted-foreground">Available slots</p>
       <div className="space-y-2">
         {slots.map(({ time, selected }) => (

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
+import { getMyProfile } from "@/lib/queries/profile"
 
 const initialOpenAppointments = [
   { id: "avail-1", title: "Haircut with Mia", time: "Today, 9:00 AM", location: "Downtown Salon" },
@@ -20,8 +21,17 @@ export function ClientHomePage() {
   const [pending, setPending] = useState(null)
   const [countdown, setCountdown] = useState(0)
   const [cancelTarget, setCancelTarget] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [profileLoading, setProfileLoading] = useState(true)
 
   const canSelect = pending === null && cancelTarget === null
+
+  useEffect(() => {
+    getMyProfile()
+      .then((data) => setProfile(data))
+      .catch((err) => console.error("Failed to load profile:", err))
+      .finally(() => setProfileLoading(false))
+  }, [])
 
   useEffect(() => {
     if (!pending) {
@@ -84,7 +94,9 @@ export function ClientHomePage() {
     <div className="relative flex h-[calc(100vh-4.75rem)] w-full flex-1 flex-col rounded-lg border bg-card p-4 shadow-sm">
       <header className="mb-4 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Welcome, [username]</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Welcome, {profileLoading ? "..." : (profile?.display_name?.split(' ')[0] || "User")}
+          </h1>
           <p className="text-sm text-muted-foreground">Manage your current appointments and view available slots.</p>
         </div>
       </header>
@@ -105,7 +117,7 @@ export function ClientHomePage() {
                         <p className="text-xs text-muted-foreground">{item.time} · {item.location}</p>
                       </div>
                       <button
-                        className="rounded bg-primary px-3 py-1 text-xs text-white disabled:opacity-40"
+                        className="rounded bg-primary px-3 py-1 text-xs text-white dark:text-black disabled:opacity-40"
                         onClick={() => selectAppointment(item)}
                         disabled={!canSelect}
                       >
@@ -162,7 +174,7 @@ export function ClientHomePage() {
                 Cancel
               </button>
               <button
-                className="rounded px-3 py-1 bg-primary text-white hover:bg-primary/90"
+                className="rounded px-3 py-1 bg-primary text-white dark:text-black hover:bg-primary/90"
                 onClick={confirmPending}
               >
                 Confirm

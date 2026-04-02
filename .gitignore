@@ -144,6 +144,7 @@ vite.config.ts.timestamp-*
 *.pyo
 .venv/
 venv/
+*.egg-info/
 
 # Python
 .venv/
@@ -155,12 +156,21 @@ __pycache__/
 
 # Environment
 .env
+services/api/.env
+apps/web/.env
 
 # Virtual envs nested inside project
 services/api/.venv/
 services/api/app/venv/
 
 # IDE
+# IDE
+.idea/
 .vscode/
+*.swp
+*.swo
+*~
 
+# OS
 **/.DS_Store
+Thumbs.db

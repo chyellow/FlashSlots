@@ -17,15 +17,24 @@ export default function RegisterView() {
     e.preventDefault();
     setError(null);
     setLoading(true);
+
     try {
-      const data = await register(email, password, role, displayName, username, phone);
+      const data = await register({
+        email,
+        password,
+        role: role === "Business" ? "BUSINESS" : "CLIENT",
+        display_name: displayName,
+        username,
+        phone,
+      });
+
       if (data.role === "BUSINESS") {
         navigate("/vendor");
       } else {
         navigate("/client");
       }
     } catch (err) {
-      setError(typeof err.message === "string" ? err.message : "Registration failed");
+      setError(err.message || "Registration failed");
     } finally {
       setLoading(false);
     }

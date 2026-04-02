@@ -1,4 +1,4 @@
-import { NavLink, Outlet, Link } from "react-router"
+import { NavLink, Outlet, Link } from "react-router-dom"
 import { cn } from "@/lib/utils"
 
 const navClass = ({ isActive }) =>
@@ -27,13 +27,6 @@ export function VendorLayout() {
             <NavLink to="help" className={navClass}>
               Help
             </NavLink>
-            <Link
-              to="/FlashSlots/profile/vendor"
-              state={{ returnTo: "/FlashSlots/vendor/appointments" }}
-              className="inline-flex items-center border-b-2 border-transparent px-2 pb-3 pt-1 text-sm font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground"
-            >
-              Profile
-            </Link>
           </nav>
         </div>
       </header>

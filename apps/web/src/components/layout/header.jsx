@@ -1,5 +1,5 @@
 "use client"
-import { Link, useLocation } from "react-router"
+import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { useScroll } from "@/hooks/use-scroll"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,7 @@ import { Zap } from "lucide-react"
 export function Header() {
   const scrolled = useScroll(10)
   const { pathname } = useLocation()
-  const isHome = pathname === "/FlashSlots/" || pathname === "/FlashSlots"
+  const isHome = pathname === "/" || pathname === "/"
   const showBg = !isHome || scrolled
 
   return (
@@ -23,7 +23,7 @@ export function Header() {
       <nav className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between px-6">
         {/* logo */}
         <Link
-          to="/FlashSlots/"
+          to="/"
           className="flex items-center gap-2 transition-opacity hover:opacity-80"
         >
           <div className="flex size-8 items-center justify-center rounded-lg bg-foreground text-background">
@@ -34,10 +34,10 @@ export function Header() {
 
         <div className="flex items-center gap-2.5">
           <Button asChild variant="ghost" size="sm">
-            <Link to="/FlashSlots/login">Sign In</Link>
+            <Link to="/login">Sign In</Link>
           </Button>
           <Button asChild size="sm">
-            <Link to="/FlashSlots/register">Get Started</Link>
+            <Link to="/register">Get Started</Link>
           </Button>
         </div>
       </nav>

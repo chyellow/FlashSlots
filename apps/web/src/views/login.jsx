@@ -1,8 +1,8 @@
 // apps/web/src/views/LoginView.jsx
 
 import { useState } from "react";
-import { useNavigate, Link } from "react-router";
-import { loginRequest } from "@/lib/auth";
+import { useNavigate, Link } from "react-router-dom";
+import { login } from "../api/auth";
 
 export default function LoginView() {
   const navigate = useNavigate();
@@ -16,12 +16,12 @@ export default function LoginView() {
     setError(null);
     setLoading(true);
     try {
-      const data = await loginRequest(email, password);
+      const data = await login({email, password});
       // Redirect based on role after login
       if (data.role === "BUSINESS") {
-        navigate("/FlashSlots/vendor");
+        navigate("/vendor");
       } else {
-        navigate("/FlashSlots/client");
+        navigate("/client");
       }
     } catch (err) {
       setError(err.message);
@@ -75,7 +75,7 @@ export default function LoginView() {
 
         <p className="mt-6 text-sm text-center text-gray-500">
           Don't have an account?{" "}
-          <Link to="/FlashSlots/register" className="text-blue-600 hover:underline">
+          <Link to="/register" className="text-blue-600 hover:underline">
             Sign up
           </Link>
         </p>

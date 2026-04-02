@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Link } from "react-router"
+import { Link } from "react-router-dom"
 import { getMyProfile, updateMyProfile } from "@/lib/queries/profile"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"

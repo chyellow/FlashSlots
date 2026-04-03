@@ -42,7 +42,7 @@ export function VendorPostPage() {
             staff_name: slot.employee || null,
             starts_at: starts_at.toISOString(),
             ends_at: ends_at.toISOString(),
-            listed_price: 50.00, // Hardcoded default for MVP, can be dynamic later
+            listed_price: parseFloat(slot.price) || 0.00, // Hardcoded default for MVP, can be dynamic later
             payment_option: "BOTH",
             listing_expires_at: listing_expires_at.toISOString()
           })

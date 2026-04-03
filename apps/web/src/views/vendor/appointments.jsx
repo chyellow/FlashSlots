@@ -93,6 +93,7 @@ export function VendorAppointmentsPage() {
                   <div className="mt-2 text-sm text-muted-foreground space-y-1">
                     <p>Time: <span className="text-foreground">{formatTime(op.starts_at)}</span></p>
                     <p>Staff: {op.staff_name || "N/A"}</p>
+                    <p>Client: {op.client_name || "N/A"}</p>
                     <p>Price: ${op.listed_price}</p>
                   </div>
                 </div>

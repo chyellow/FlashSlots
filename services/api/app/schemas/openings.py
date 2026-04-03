@@ -33,6 +33,7 @@ class OpeningRead(BaseModel):
     business_id: int
     posted_by_account_id: int
     staff_name: str | None = None
+    client_name: str | None = None
     title: str | None = None
     description: str | None = None
     starts_at: datetime
@@ -44,3 +45,4 @@ class OpeningRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     version: int
+

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
-from app.models import Opening, Business, Account
+from sqlalchemy.orm import Session, joinedload
+from app.models import Opening, Business, Account, Reservation
 from app.schemas.openings import OpeningCreate, OpeningUpdate
 
 
@@ -112,6 +112,11 @@ def list_my_openings(db: Session, account: Account) -> list[Opening]:
 
     return (
         db.query(Opening)
+        .options(
+            joinedload(Opening.reservation)
+            .joinedload(Reservation.client)
+            .joinedload(Account.profile)
+        )
         .filter(Opening.business_id == business.business_id)
         .order_by(Opening.starts_at.desc())
         .all()

@@ -46,3 +46,9 @@ class Opening(Base):
 
     business = relationship("Business", back_populates="openings")
     reservation = relationship("Reservation", back_populates="opening", uselist=False)
+
+    @property
+    def client_name(self) -> str | None:
+        if self.reservation and self.reservation.client and self.reservation.client.profile:
+            return self.reservation.client.profile.display_name
+        return None

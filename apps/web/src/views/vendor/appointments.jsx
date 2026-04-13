@@ -1,5 +1,9 @@
-import { useEffect, useState } from "react"
-import { getOpenings, deleteOpening } from "@/lib/queries/openings"
+import { useEffect, useMemo, useState } from "react"
+import { Availability } from "@/components/ui/availability"
+import { Button } from "@/components/ui/button"
+import { getOpenings, deleteOpening, patchOpening, postOpening } from "@/lib/queries/openings"
+import { getMyBusiness } from "@/lib/queries/business"
+import { getBusinessReservations, cancelReservation } from "@/lib/queries/reservations"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 function formatTime(dateString) {
@@ -14,13 +18,87 @@ function formatTime(dateString) {
   })
 }
 
-export function VendorAppointmentsPage() {
-  const [openings, setOpenings] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+function getNextDateForDay(dayIndex, timeStr) {
+  const now = new Date()
+  const result = new Date(now)
 
-  const loadData = async () => {
-    setLoading(true)
+  result.setDate(now.getDate() + ((dayIndex + 7 - now.getDay()) % 7))
+
+  const [hours, minutes] = timeStr.split(":")
+  result.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0)
+
+  if (result < now) {
+    result.setDate(result.getDate() + 7)
+  }
+
+  return result
+}
+
+function toLocalTimeString(dateString) {
+  const date = new Date(dateString)
+  return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`
+}
+
+function openingToCalendarEvent(opening) {
+  const startsAt = new Date(opening.starts_at)
+  const isClaimed = opening.status === "BOOKED"
+
+  return {
+    id: `opening-${opening.opening_id}`,
+    week_day: startsAt.getDay(),
+    start_time: toLocalTimeString(opening.starts_at),
+    end_time: toLocalTimeString(opening.ends_at),
+    name: opening.staff_name || "Unassigned",
+    employee: opening.title || "",
+    openingId: opening.opening_id,
+    status: opening.status,
+    startsAt: opening.starts_at,
+    endsAt: opening.ends_at,
+    listingExpiresAt: opening.listing_expires_at,
+    className: isClaimed
+      ? "bg-emerald-100 border-emerald-300 text-emerald-950 dark:bg-emerald-500/20 dark:border-emerald-400/50 dark:text-emerald-50"
+      : "bg-amber-100 border-amber-300 text-amber-950 dark:bg-amber-500/20 dark:border-amber-400/50 dark:text-amber-50",
+  }
+}
+
+const EXPIRATION_OPTIONS = ["0", "5", "10", "15", "20", "30", "40", "50", "60"]
+
+function getExpirationMinutes(openingLike) {
+  if (!openingLike?.startsAt || !openingLike?.listingExpiresAt) {
+    return "30"
+  }
+
+  const startsAt = new Date(openingLike.startsAt).getTime()
+  const listingExpiresAt = new Date(openingLike.listingExpiresAt).getTime()
+  const diffMins = Math.max(0, Math.round((startsAt - listingExpiresAt) / 60000))
+  return String(diffMins)
+}
+
+function buildListingExpiresAt(startsAt, expirationMinutes) {
+  const mins = parseInt(expirationMinutes, 10) || 0
+  return new Date(new Date(startsAt).getTime() - mins * 60000).toISOString()
+}
+
+export function VendorAppointmentsPage() {
+  const [draftSlots, setDraftSlots] = useState([])
+  const [openings, setOpenings] = useState([])
+  const [employeeNames, setEmployeeNames] = useState([])
+  const [publishing, setPublishing] = useState(false)
+  const [loadingOpenings, setLoadingOpenings] = useState(true)
+  const [loadingEmployees, setLoadingEmployees] = useState(true)
+  const [error, setError] = useState(null)
+  const [employeeError, setEmployeeError] = useState(null)
+  const [editTarget, setEditTarget] = useState(null)
+  const [editModalData, setEditModalData] = useState({
+    name: "",
+    duration: "",
+    employee: "",
+  })
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [cancelTarget, setCancelTarget] = useState(null)
+
+  const loadOpenings = async () => {
+    setLoadingOpenings(true)
     setError(null)
     try {
       const ops = await getOpenings(true) // mine=true
@@ -33,23 +111,175 @@ export function VendorAppointmentsPage() {
       console.error(err)
       setError(err.message || "Failed to load appointments")
     } finally {
-      setLoading(false)
+      setLoadingOpenings(false)
+    }
+  }
+
+  const loadEmployees = async () => {
+    setLoadingEmployees(true)
+    setEmployeeError(null)
+    try {
+      const business = await getMyBusiness()
+      setEmployeeNames(business.employee_names || [])
+    } catch (err) {
+      setEmployeeError(err.message || "Could not load employees")
+    } finally {
+      setLoadingEmployees(false)
     }
   }
 
   useEffect(() => {
-    loadData()
+    loadOpenings()
+    loadEmployees()
   }, [])
 
-  const handleCancelOpening = async (openingId) => {
-    if (!window.confirm("Are you sure you want to cancel this listing?")) return
+  const handlePublish = async () => {
+    setPublishing(true)
     try {
-      await deleteOpening(openingId)
-      loadData()
+      await Promise.all(
+        draftSlots.map(async (slot) => {
+          const starts_at = getNextDateForDay(slot.week_day, slot.start_time)
+          const ends_at = getNextDateForDay(slot.week_day, slot.end_time)
+          const expireMins = slot.duration ? parseInt(slot.duration, 10) : 30
+          const listing_expires_at = new Date(starts_at.getTime() - expireMins * 60000)
+
+          await postOpening({
+            title: slot.employee || "Available Appointment",
+            staff_name: slot.name || null,
+            starts_at: starts_at.toISOString(),
+            ends_at: ends_at.toISOString(),
+            listed_price: 50.00,
+            payment_option: "BOTH",
+            listing_expires_at: listing_expires_at.toISOString(),
+          })
+        })
+      )
+
+      alert("Openings published successfully to the marketplace!")
+      setDraftSlots([])
+      loadOpenings()
     } catch (err) {
-      alert("Failed to cancel: " + err.message)
+      alert("Error publishing openings: " + (err.message || "Unknown error"))
+    } finally {
+      setPublishing(false)
     }
   }
+
+  const handleOpenAppointmentSettings = (event) => {
+    setEditTarget(event)
+    setEditModalData({
+      name: event.name || "",
+      duration: getExpirationMinutes(event),
+      employee: event.employee || "",
+    })
+  }
+
+  const handleCloseEditModal = () => {
+    setEditTarget(null)
+    setEditModalData({
+      name: "",
+      duration: "",
+      employee: "",
+    })
+  }
+
+  const handleSaveAppointment = async () => {
+    if (!editTarget || !editModalData.name || !editModalData.duration) {
+      return
+    }
+
+    setSavingEdit(true)
+    try {
+      await patchOpening(editTarget.openingId, {
+        staff_name: editModalData.name,
+        title: editModalData.employee || null,
+        listing_expires_at: buildListingExpiresAt(editTarget.startsAt, editModalData.duration),
+      })
+      handleCloseEditModal()
+      loadOpenings()
+    } catch (err) {
+      alert(err.message || "Failed to update appointment.")
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
+  const requestCancelAppointment = () => {
+    if (!editTarget) return
+    setCancelTarget(editTarget)
+    handleCloseEditModal()
+  }
+
+  const requestCancelForOpening = (opening) => {
+    setCancelTarget(openingToCalendarEvent(opening))
+  }
+
+  const dismissCancel = () => {
+    setCancelTarget(null)
+  }
+
+  const confirmCancelAppointment = async () => {
+    if (!cancelTarget) return
+
+    try {
+      if (cancelTarget.status === "BOOKED") {
+        const reservations = await getBusinessReservations()
+        const matchingReservation = reservations.find(
+          (reservation) => reservation.opening_id === cancelTarget.openingId
+        )
+
+        if (!matchingReservation) {
+          throw new Error("Could not find the reservation tied to this appointment.")
+        }
+
+        await cancelReservation(matchingReservation.reservation_id, "Business cancellation")
+      } else {
+        await deleteOpening(cancelTarget.openingId)
+      }
+
+      setCancelTarget(null)
+      loadOpenings()
+    } catch (err) {
+      alert(err.message || "Failed to cancel appointment.")
+    }
+  }
+
+  const activeOpenings = openings.filter(o => o.status === 'OPEN' || o.status === 'ON_HOLD')
+  const bookedOpenings = openings.filter(o => o.status === 'BOOKED')
+  const pastOpenings = openings.filter(o => o.status === 'EXPIRED' || o.status === 'CANCELLED')
+  const calendarEvents = useMemo(() => {
+    const now = new Date()
+    const calendarWindowEnd = new Date(now)
+    calendarWindowEnd.setDate(calendarWindowEnd.getDate() + 7)
+
+    return openings
+      .filter((opening) => {
+        if (!["OPEN", "ON_HOLD", "BOOKED"].includes(opening.status)) {
+          return false
+        }
+
+        const startsAt = new Date(opening.starts_at)
+        const endsAt = new Date(opening.ends_at)
+        return endsAt > now && startsAt < calendarWindowEnd
+      })
+      .map(openingToCalendarEvent)
+  }, [openings])
+  const editEmployeeOptions = useMemo(() => {
+    if (!editTarget?.name) {
+      return employeeNames
+    }
+
+    return Array.from(new Set([editTarget.name, ...employeeNames].filter(Boolean)))
+  }, [editTarget?.name, employeeNames])
+  const editDurationOptions = useMemo(() => {
+    if (!editModalData.duration || EXPIRATION_OPTIONS.includes(editModalData.duration)) {
+      return EXPIRATION_OPTIONS
+    }
+
+    return [...EXPIRATION_OPTIONS, editModalData.duration].sort((a, b) => Number(a) - Number(b))
+  }, [editModalData.duration])
+
+  const loading = loadingOpenings
 
   if (loading) {
     return <div className="animate-pulse p-4 text-muted-foreground text-sm">Loading your schedule...</div>
@@ -59,21 +289,55 @@ export function VendorAppointmentsPage() {
     return <div className="p-4 text-red-500 text-sm">Error: {error}</div>
   }
 
-  // Group openings safely
-  const activeOpenings = openings.filter(o => o.status === 'OPEN' || o.status === 'ON_HOLD')
-  const bookedOpenings = openings.filter(o => o.status === 'BOOKED')
-  const pastOpenings = openings.filter(o => o.status === 'EXPIRED' || o.status === 'CANCELLED')
-
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Appointments</h1>
-        <p className="mt-1 max-w-xl text-muted-foreground text-sm leading-relaxed">
-          Manage your live listings and booked schedule.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Appointments</h1>
+          <p className="mt-1 max-w-xl text-muted-foreground text-sm leading-relaxed">
+            Create new openings and see your upcoming week of claimed and unclaimed appointments on one calendar.
+          </p>
+          {loadingEmployees ? (
+            <p className="mt-2 text-sm text-muted-foreground">Loading employees...</p>
+          ) : employeeError ? (
+            <p className="mt-2 text-sm text-red-500">{employeeError}</p>
+          ) : employeeNames.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Add employees in your profile before creating appointments.
+            </p>
+          ) : null}
+        </div>
+        <Button onClick={handlePublish} disabled={publishing || draftSlots.length === 0}>
+          {publishing ? "Publishing..." : `Publish ${draftSlots.length} slot(s)`}
+        </Button>
       </div>
 
-      <Tabs defaultValue="booked" className="w-full">
+      <div className="rounded-lg border bg-card p-4 shadow-xs">
+        <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
+          <div className="inline-flex items-center gap-2">
+            <span className="h-3 w-3 rounded-full bg-amber-300 dark:bg-amber-400" />
+            <span className="text-muted-foreground">Unclaimed</span>
+          </div>
+          <div className="inline-flex items-center gap-2">
+            <span className="h-3 w-3 rounded-full bg-emerald-400 dark:bg-emerald-400" />
+            <span className="text-muted-foreground">Claimed</span>
+          </div>
+        </div>
+
+        <Availability
+          value={draftSlots}
+          onValueChange={setDraftSlots}
+          employeeOptions={employeeNames}
+          lockedEvents={calendarEvents}
+          onLockedEventSelect={handleOpenAppointmentSettings}
+          startTime={5}
+          endTime={24}
+          useAmPm={true}
+          timeIncrements={15}
+        />
+      </div>
+
+      <Tabs defaultValue="active" className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="booked">Booked ({bookedOpenings.length})</TabsTrigger>
           <TabsTrigger value="active">Active Listings ({activeOpenings.length})</TabsTrigger>
@@ -105,7 +369,7 @@ export function VendorAppointmentsPage() {
         <TabsContent value="active" className="space-y-4">
           {activeOpenings.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center border rounded-lg bg-card border-dashed">
-              No active listings. Go to "Post appointment" to add some!
+              No active listings. Use the calendar above to add some.
             </p>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -114,7 +378,7 @@ export function VendorAppointmentsPage() {
                   <div>
                     <div className="flex items-start justify-between">
                       <h3 className="font-semibold text-lg">{op.title || "Appointment"}</h3>
-                      <span className="text-xs font-medium px-2 py-1 bg-primary/10 text-primary rounded-full">
+                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-amber-100 text-amber-900 dark:bg-amber-500/20 dark:text-amber-100">
                         {op.status}
                       </span>
                     </div>
@@ -125,7 +389,7 @@ export function VendorAppointmentsPage() {
                     </div>
                   </div>
                   <button 
-                    onClick={() => handleCancelOpening(op.opening_id)}
+                    onClick={() => requestCancelForOpening(op)}
                     className="mt-4 text-xs font-medium text-red-600 hover:text-red-700 w-fit"
                   >
                     Cancel Listing
@@ -159,6 +423,129 @@ export function VendorAppointmentsPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={handleCloseEditModal} />
+          <div className="relative z-10 w-[min(90vw,420px)] rounded-xl border border-border bg-background p-6 shadow-xl">
+            <h3 className="text-lg font-semibold">Edit Appointment</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {formatTime(editTarget.startsAt)}
+            </p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleSaveAppointment()
+              }}
+              className="mt-4 space-y-4"
+            >
+              <div>
+                <label className="mb-1 block text-sm font-medium">
+                  Employee *
+                </label>
+                <select
+                  value={editModalData.name}
+                  onChange={(e) => setEditModalData((prev) => ({ ...prev, name: e.target.value }))}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 font-sans text-foreground shadow-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                  required
+                >
+                  <option value="">Select employee</option>
+                  {editEmployeeOptions.map((employee) => (
+                    <option key={employee} value={employee}>
+                      {employee}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">
+                  Booking expiration (minutes before start) *
+                </label>
+                <select
+                  value={editModalData.duration}
+                  onChange={(e) => setEditModalData((prev) => ({ ...prev, duration: e.target.value }))}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 font-sans text-foreground shadow-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                  required
+                >
+                  <option value="">Select duration</option>
+                  {editDurationOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option === "0" ? "Until start time" : `${option} minutes`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">
+                  Appointment Type (optional)
+                </label>
+                <input
+                  type="text"
+                  value={editModalData.employee}
+                  onChange={(e) => setEditModalData((prev) => ({ ...prev, employee: e.target.value }))}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 font-sans text-foreground shadow-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div className="flex flex-wrap justify-between gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={requestCancelAppointment}
+                  className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+                >
+                  Cancel Appointment
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCloseEditModal}
+                    className="rounded-md bg-muted px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/90"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingEdit}
+                    className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {savingEdit ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {cancelTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={dismissCancel} />
+          <div className="relative z-10 w-[min(90vw,420px)] rounded-xl border border-border bg-background p-6 shadow-xl">
+            <h3 className="text-lg font-semibold">Are you sure?</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {cancelTarget.status === "BOOKED"
+                ? "Cancelling this appointment will remove the client's booking and reopen the time if it is still upcoming."
+                : "Cancelling this appointment will remove the listing from your schedule."}
+            </p>
+            <p className="mt-2 text-sm font-medium">
+              {(cancelTarget.employee || "Appointment")} - {formatTime(cancelTarget.startsAt)}
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                className="rounded px-3 py-1 border border-border text-sm text-muted-foreground hover:bg-muted/20"
+                onClick={dismissCancel}
+              >
+                Keep
+              </button>
+              <button
+                className="rounded px-3 py-1 bg-red-600 text-white hover:bg-red-700"
+                onClick={confirmCancelAppointment}
+              >
+                Cancel Appointment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

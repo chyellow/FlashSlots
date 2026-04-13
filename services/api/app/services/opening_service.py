@@ -194,7 +194,7 @@ def update_opening(
     if not opening or opening.business_id != business.business_id:
         raise HTTPException(status_code=404, detail="Opening not found")
 
-    if opening.status in ("BOOKED", "CANCELLED", "EXPIRED"):
+    if opening.status in ("CANCELLED", "EXPIRED"):
         raise HTTPException(status_code=409, detail="Cannot edit this opening")
 
     data = payload.model_dump(exclude_unset=True)

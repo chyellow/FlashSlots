@@ -1,7 +1,8 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Availability } from "@/components/ui/availability"
 import { Button } from "@/components/ui/button"
 import { postOpening } from "@/lib/queries/openings"
+import { getMyBusiness } from "@/lib/queries/business"
 import { useNavigate } from "react-router-dom"
 
 function getNextDateForDay(dayIndex, timeStr) {
@@ -23,7 +24,25 @@ function getNextDateForDay(dayIndex, timeStr) {
 export function VendorPostPage() {
   const [data, setData] = useState([])
   const [publishing, setPublishing] = useState(false)
+  const [employeeNames, setEmployeeNames] = useState([])
+  const [loadingEmployees, setLoadingEmployees] = useState(true)
+  const [employeeError, setEmployeeError] = useState(null)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    async function loadBusiness() {
+      try {
+        const business = await getMyBusiness()
+        setEmployeeNames(business.employee_names || [])
+      } catch (err) {
+        setEmployeeError(err.message || "Could not load employees")
+      } finally {
+        setLoadingEmployees(false)
+      }
+    }
+
+    loadBusiness()
+  }, [])
 
   const handlePublish = async () => {
     setPublishing(true)
@@ -38,8 +57,8 @@ export function VendorPostPage() {
           const listing_expires_at = new Date(starts_at.getTime() - expireMins * 60000)
 
           await postOpening({
-            title: slot.name || "Available Appointment",
-            staff_name: slot.employee || null,
+            title: slot.employee || "Available Appointment",
+            staff_name: slot.name || null,
             starts_at: starts_at.toISOString(),
             ends_at: ends_at.toISOString(),
             listed_price: parseFloat(slot.price) || 0.00, // Hardcoded default for MVP, can be dynamic later
@@ -67,6 +86,15 @@ export function VendorPostPage() {
           <p className="mt-1 max-w-xl text-muted-foreground text-sm leading-relaxed">
             Drag to publish open time so clients can book last-minute openings.
           </p>
+          {loadingEmployees ? (
+            <p className="mt-2 text-sm text-muted-foreground">Loading employees...</p>
+          ) : employeeError ? (
+            <p className="mt-2 text-sm text-red-500">{employeeError}</p>
+          ) : employeeNames.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Add employees in your profile before creating appointments.
+            </p>
+          ) : null}
         </div>
         <Button onClick={handlePublish} disabled={publishing || data.length === 0}>
           {publishing ? "Publishing..." : `Publish ${data.length} slot(s)`}
@@ -77,6 +105,7 @@ export function VendorPostPage() {
         <Availability
           value={data}
           onValueChange={setData}
+          employeeOptions={employeeNames}
           startTime={5}
           endTime={24}
           useAmPm={true}

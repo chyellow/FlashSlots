@@ -1,4 +1,4 @@
-import { NavLink, Outlet, Link } from "react-router-dom"
+import { NavLink, Outlet } from "react-router-dom"
 import { cn } from "@/lib/utils"
 
 const navClass = ({ isActive }) =>
@@ -17,9 +17,6 @@ export function VendorLayout() {
           <nav className="flex w-full flex-wrap items-end justify-center gap-x-5 gap-y-2 sm:gap-x-8">
             <NavLink to="appointments" className={navClass} end>
               Appointments
-            </NavLink>
-            <NavLink to="post" className={navClass}>
-              Post appointment
             </NavLink>
             <NavLink to="about" className={navClass}>
               About

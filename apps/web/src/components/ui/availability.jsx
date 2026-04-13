@@ -109,6 +109,7 @@ function useCalendarCreation({
   endTime,
   events,
   disabledEvents = [],
+  lockedEvents = [],
   onCreate,
   colIndex,
   isDayDisabled = false,
@@ -130,10 +131,8 @@ function useCalendarCreation({
   const startOffset = startTime * 60;
 
   const sortedConstraints = React.useMemo(() => {
-    return [...events, ...disabledEvents].sort(
-      (a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time),
-    );
-  }, [events, disabledEvents]);
+    return [...events, ...disabledEvents, ...lockedEvents].sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
+  }, [events, disabledEvents, lockedEvents])
 
   const getMinutesFromY = (y) => {
     if (!containerRef.current) return 0;
@@ -296,6 +295,9 @@ const AvailabilityDragContext = React.createContext(null);
 export function Availability({
   value = [],
   onValueChange,
+  employeeOptions = [],
+  lockedEvents = [],
+  onLockedEventSelect,
   disabled = [],
   days = [0, 1, 2, 3, 4, 5, 6],
   showAllDays = true,
@@ -629,13 +631,12 @@ export function Availability({
                     startTime={startTime}
                     endTime={endTime}
                     timeIncrements={timeIncrements}
-                    events={internalValue.filter(
-                      (e) => e.week_day === dayIndex,
-                    )}
-                    disabledEvents={disabled.filter(
-                      (e) => e.week_day === dayIndex,
-                    )}
+                    events={internalValue.filter(e => e.week_day === dayIndex)}
+                    lockedEvents={lockedEvents.filter(e => e.week_day === dayIndex)}
+                    disabledEvents={disabled.filter(e => e.week_day === dayIndex)}
                     onCreate={handleCreate}
+                    employeeOptions={employeeOptions}
+                    onLockedEventSelect={onLockedEventSelect}
                     onResize={handleResize}
                     onDelete={handleDelete}
                     useAmPm={useAmPm}
@@ -668,8 +669,11 @@ function DayColumn({
   endTime,
   timeIncrements,
   events,
+  lockedEvents = [],
   disabledEvents = [],
   onCreate,
+  employeeOptions = [],
+  onLockedEventSelect,
   onResize,
   onDelete,
   useAmPm,
@@ -690,33 +694,19 @@ function DayColumn({
     setNodeRef(node);
   };
 
-  const {
-    isCreating,
-    creationStart,
-    currentMouseY,
-    pendingConfirmation,
-    showModal,
-    modalData,
-    setModalData,
-    totalMinutes,
-    startOffset,
-    sortedConstraints,
-    handlePointerDown,
-    confirmCreation,
-    cancelCreation,
-    handleModalSubmit,
-    handleModalCancel,
-  } = useCalendarCreation({
-    containerRef,
-    timeIncrements,
-    startTime,
-    endTime,
-    events,
-    disabledEvents,
-    onCreate,
-    colIndex,
-    isDayDisabled,
-  });
+  const { isCreating, creationStart, currentMouseY, pendingConfirmation, showModal, modalData, setModalData, totalMinutes, startOffset, sortedConstraints, handlePointerDown, confirmCreation, cancelCreation, handleModalSubmit, handleModalCancel } =
+    useCalendarCreation({
+      containerRef,
+      timeIncrements,
+      startTime,
+      endTime,
+      events,
+      lockedEvents,
+      disabledEvents,
+      onCreate,
+      colIndex,
+      isDayDisabled,
+    })
 
   const modalFieldClassName =
     "w-full rounded-md border border-input bg-background px-3 py-2 font-sans text-foreground shadow-xs focus:outline-none focus:ring-2 focus:ring-primary";
@@ -847,10 +837,27 @@ function DayColumn({
             containerRef={containerRef}
             isDragging={isDragging}
             isLocked={isDayDisabled}
-            slotClassName={slotClassName}
-          />
+            slotClassName={event.className || slotClassName} />
         );
       })}
+      {lockedEvents.map((event) => (
+        <DraggableTimeSpan
+          key={event.id}
+          span={event}
+          startTime={startTime}
+          endTime={endTime}
+          minStart={startTime * 60}
+          maxEnd={endTime * 60}
+          onResize={onResize}
+          onDelete={onDelete}
+          useAmPm={useAmPm}
+          timeIncrements={timeIncrements}
+          containerRef={containerRef}
+          isDragging={false}
+          isLocked={true}
+          onSettingsClick={onLockedEventSelect}
+          slotClassName={event.className || slotClassName} />
+      ))}
       {isCreating && creationStart !== null && currentMouseY !== null && (
         <div
           className="absolute left-0 right-0 mx-1 rounded bg-primary/30 border border-primary z-20 pointer-events-none"
@@ -919,7 +926,7 @@ function DayColumn({
             <form onSubmit={handleModalSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Appointment Name *
+                  Employee *
                 </label>
                 <input
                   type="text"
@@ -929,11 +936,12 @@ function DayColumn({
                   }
                   className={modalFieldClassName}
                   required
-                />
+                >
+                </input>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Duration (minutes before start time) *
+                  Booking expiration (minutes before start) *
                 </label>
                 <select
                   value={modalData.duration || ""}
@@ -960,7 +968,7 @@ function DayColumn({
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Employee (optional)
+                  Appointment Type (optional)
                 </label>
                 <input
                   type="text"
@@ -1010,6 +1018,7 @@ function DayColumn({
               <div className="flex gap-2 pt-4">
                 <button
                   type="submit"
+                  disabled={!hasEmployeeOptions}
                   className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90"
                 >
                   Create
@@ -1043,7 +1052,8 @@ function DraggableTimeSpan({
   containerRef,
   isDragging,
   isLocked = false,
-  slotClassName = "bg-muted",
+  onSettingsClick,
+  slotClassName = "bg-muted"
 }) {
   const context = React.useContext(AvailabilityDragContext);
   const { attributes, listeners, setNodeRef } = useDraggable({
@@ -1061,8 +1071,8 @@ function DraggableTimeSpan({
   const style = {
     top: `${((startMinutes - startOffset) / totalMinutes) * 100}%`,
     height: `${(durationMinutes / totalMinutes) * 100}%`,
-    opacity: isDragging ? 0 : isLocked ? 0.6 : 1,
-  };
+    opacity: isDragging ? 0 : isLocked ? 0.95 : 1,
+  }
 
   const handleResizeStart = (e, edge) => {
     if (isLocked) return;
@@ -1173,6 +1183,21 @@ function DraggableTimeSpan({
         isLocked={isLocked}
       />
 
+      {isLocked && onSettingsClick && (
+        <button
+          type="button"
+          aria-label={`Edit ${span.name || "appointment"}`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            onSettingsClick(span)
+          }}
+          className="absolute right-1.5 top-1.5 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition-colors hover:bg-background hover:text-foreground"
+        >
+          <Settings className="h-3.5 w-3.5" />
+        </button>
+      )}
+
       {/* Resize Handle Bottom */}
       {canResize && (
         <div
@@ -1193,9 +1218,8 @@ function DraggableTimeSpan({
         "absolute left-1 right-1 rounded border p-3 shadow-sm text-xs group overflow-hidden touch-none",
         slotClassName,
         isDragging && "opacity-0",
-        isLocked && "border-dashed opacity-60 cursor-default bg-muted/50",
-      )}
-    >
+        isLocked && "border-dashed cursor-default"
+      )}>
       {content}
     </div>
   );
@@ -1252,12 +1276,13 @@ function TimeSpanCard({ span, useAmPm, duration, isLocked = false }) {
   return (
     <div className="h-full flex flex-col relative items-between text-foreground timespan-inner-area pointer-events-none">
       <div className="flex flex-col gap-0.5 text-inherit">
-        <p className="font-semibold leading-none">
-          {formatDisplayTime(span.start_time, useAmPm)}
-        </p>
-        {/* Show appointment name if it exists */}
+        <p className="font-semibold leading-none">{formatDisplayTime(span.start_time, useAmPm)}</p>
+        {/* Show primary label if it exists */}
         {span.name && (
           <p className="text-xs font-medium truncate">{span.name}</p>
+        )}
+        {span.employee && (
+          <p className="text-[10px] truncate opacity-80">{span.employee}</p>
         )}
         {/* Only show duration when the slot is tall enough (2h+) */}
         {calculatedDuration >= 2 && (
@@ -1270,10 +1295,7 @@ function TimeSpanCard({ span, useAmPm, duration, isLocked = false }) {
         )}
       </div>
       <div className="flex flex-col gap-1 mt-auto text-inherit">
-        {isLocked && <Settings className="h-3 w-3 opacity-50" />}
-        <p className="font-semibold leading-none !text-inherit">
-          {formatDisplayTime(span.end_time, useAmPm)}
-        </p>
+        <p className="font-semibold leading-none !text-inherit">{formatDisplayTime(span.end_time, useAmPm)}</p>
       </div>
     </div>
   );

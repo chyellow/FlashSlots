@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
@@ -7,29 +7,31 @@ const MIN_PASSWORD_LENGTH = 8;
 export default function RegisterView() {
   const navigate = useNavigate();
   const { registerAction } = useAuth();
+  const passwordInputRef = useRef(null);
 
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [passwordTouched, setPasswordTouched] = useState(false);
   const [role, setRole] = useState("CLIENT");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const isBusiness = role === "BUSINESS";
-  const passwordTooShort =
-    password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
 
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setPasswordTouched(true);
+      passwordInputRef.current?.setCustomValidity(
+        `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`,
+      );
+      passwordInputRef.current?.reportValidity();
       return;
     }
 
+    passwordInputRef.current?.setCustomValidity("");
     setLoading(true);
 
     try {
@@ -115,23 +117,31 @@ export default function RegisterView() {
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium">Password</label>
             <input
+              ref={passwordInputRef}
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onBlur={() => setPasswordTouched(true)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                e.target.setCustomValidity("");
+              }}
+              onInvalid={(e) => {
+                if (e.currentTarget.validity.valueMissing) {
+                  e.currentTarget.setCustomValidity("Please enter a password.");
+                  return;
+                }
+
+                if (e.currentTarget.validity.customError) {
+                  return;
+                }
+              }}
               placeholder="••••••••"
               className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              aria-invalid={passwordTouched && passwordTooShort}
               required
             />
             <p
-              className={`text-xs ${
-                passwordTouched && passwordTooShort ? "text-red-600" : "text-gray-500"
-              }`}
+              className="text-xs text-gray-500"
             >
-              {passwordTouched && passwordTooShort
-                ? `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`
-                : `Use at least ${MIN_PASSWORD_LENGTH} characters.`}
+              {`Use at least ${MIN_PASSWORD_LENGTH} characters.`}
             </p>
           </div>
 

@@ -162,6 +162,7 @@ apps/web/.env
 # Virtual envs nested inside project
 services/api/.venv/
 services/api/app/venv/
+services/api/venv/
 
 # IDE
 # IDE

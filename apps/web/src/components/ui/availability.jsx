@@ -295,7 +295,6 @@ const AvailabilityDragContext = React.createContext(null);
 export function Availability({
   value = [],
   onValueChange,
-  employeeOptions = [],
   lockedEvents = [],
   onLockedEventSelect,
   disabled = [],
@@ -635,7 +634,6 @@ export function Availability({
                     lockedEvents={lockedEvents.filter(e => e.week_day === dayIndex)}
                     disabledEvents={disabled.filter(e => e.week_day === dayIndex)}
                     onCreate={handleCreate}
-                    employeeOptions={employeeOptions}
                     onLockedEventSelect={onLockedEventSelect}
                     onResize={handleResize}
                     onDelete={handleDelete}
@@ -672,7 +670,6 @@ function DayColumn({
   lockedEvents = [],
   disabledEvents = [],
   onCreate,
-  employeeOptions = [],
   onLockedEventSelect,
   onResize,
   onDelete,
@@ -926,7 +923,7 @@ function DayColumn({
             <form onSubmit={handleModalSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Employee *
+                  Staff name *
                 </label>
                 <input
                   type="text"
@@ -1018,7 +1015,6 @@ function DayColumn({
               <div className="flex gap-2 pt-4">
                 <button
                   type="submit"
-                  disabled={!hasEmployeeOptions}
                   className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90"
                 >
                   Create

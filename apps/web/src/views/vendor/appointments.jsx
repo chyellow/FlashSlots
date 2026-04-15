@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react"
 import { Availability } from "@/components/ui/availability"
 import { Button } from "@/components/ui/button"
 import { getOpenings, deleteOpening, patchOpening, postOpening } from "@/lib/queries/openings"
-import { getMyBusiness } from "@/lib/queries/business"
 import { getBusinessReservations, cancelReservation } from "@/lib/queries/reservations"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -82,12 +81,9 @@ function buildListingExpiresAt(startsAt, expirationMinutes) {
 export function VendorAppointmentsPage() {
   const [draftSlots, setDraftSlots] = useState([])
   const [openings, setOpenings] = useState([])
-  const [employeeNames, setEmployeeNames] = useState([])
   const [publishing, setPublishing] = useState(false)
   const [loadingOpenings, setLoadingOpenings] = useState(true)
-  const [loadingEmployees, setLoadingEmployees] = useState(true)
   const [error, setError] = useState(null)
-  const [employeeError, setEmployeeError] = useState(null)
   const [editTarget, setEditTarget] = useState(null)
   const [editModalData, setEditModalData] = useState({
     name: "",
@@ -115,22 +111,8 @@ export function VendorAppointmentsPage() {
     }
   }
 
-  const loadEmployees = async () => {
-    setLoadingEmployees(true)
-    setEmployeeError(null)
-    try {
-      const business = await getMyBusiness()
-      setEmployeeNames(business.employee_names || [])
-    } catch (err) {
-      setEmployeeError(err.message || "Could not load employees")
-    } finally {
-      setLoadingEmployees(false)
-    }
-  }
-
   useEffect(() => {
     loadOpenings()
-    loadEmployees()
   }, [])
 
   const handlePublish = async () => {
@@ -264,13 +246,6 @@ export function VendorAppointmentsPage() {
       })
       .map(openingToCalendarEvent)
   }, [openings])
-  const editEmployeeOptions = useMemo(() => {
-    if (!editTarget?.name) {
-      return employeeNames
-    }
-
-    return Array.from(new Set([editTarget.name, ...employeeNames].filter(Boolean)))
-  }, [editTarget?.name, employeeNames])
   const editDurationOptions = useMemo(() => {
     if (!editModalData.duration || EXPIRATION_OPTIONS.includes(editModalData.duration)) {
       return EXPIRATION_OPTIONS
@@ -297,15 +272,6 @@ export function VendorAppointmentsPage() {
           <p className="mt-1 max-w-xl text-muted-foreground text-sm leading-relaxed">
             Create new openings and see your upcoming week of claimed and unclaimed appointments on one calendar.
           </p>
-          {loadingEmployees ? (
-            <p className="mt-2 text-sm text-muted-foreground">Loading employees...</p>
-          ) : employeeError ? (
-            <p className="mt-2 text-sm text-red-500">{employeeError}</p>
-          ) : employeeNames.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">
-              Add employees in your profile before creating appointments.
-            </p>
-          ) : null}
         </div>
         <Button onClick={handlePublish} disabled={publishing || draftSlots.length === 0}>
           {publishing ? "Publishing..." : `Publish ${draftSlots.length} slot(s)`}
@@ -327,7 +293,6 @@ export function VendorAppointmentsPage() {
         <Availability
           value={draftSlots}
           onValueChange={setDraftSlots}
-          employeeOptions={employeeNames}
           lockedEvents={calendarEvents}
           onLockedEventSelect={handleOpenAppointmentSettings}
           startTime={5}
@@ -441,21 +406,15 @@ export function VendorAppointmentsPage() {
             >
               <div>
                 <label className="mb-1 block text-sm font-medium">
-                  Employee *
+                  Staff name *
                 </label>
-                <select
+                <input
+                  type="text"
                   value={editModalData.name}
                   onChange={(e) => setEditModalData((prev) => ({ ...prev, name: e.target.value }))}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 font-sans text-foreground shadow-xs focus:outline-none focus:ring-2 focus:ring-primary"
                   required
-                >
-                  <option value="">Select employee</option>
-                  {editEmployeeOptions.map((employee) => (
-                    <option key={employee} value={employee}>
-                      {employee}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">

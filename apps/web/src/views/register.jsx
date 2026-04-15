@@ -69,25 +69,31 @@ export default function RegisterView() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">Display name</label>
+            <label className="text-sm font-medium">
+              {isBusiness ? "Business name" : "Display name"}{" "}
+              <span>*</span>
+            </label>
             <input
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Your full name"
-              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder={isBusiness ? "FlashSlots Inc." : "Flash E. Slots"}
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-s placeholder:italic"
               required
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">Username</label>
+            <label className="text-sm font-medium">
+              Username <span>*</span>
+            </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value.toLowerCase())}
-              placeholder="yourhandle"
-              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="flash_slotter"
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-s placeholder:italic"
+              required
             />
           </div>
 
@@ -103,19 +109,23 @@ export default function RegisterView() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">Email</label>
+            <label className="text-sm font-medium">
+              Email <span>*</span>
+            </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="flash@slots.com"
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-s placeholder:italic"
               required
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">Password</label>
+            <label className="text-sm font-medium">
+              Password <span>*</span>
+            </label>
             <input
               ref={passwordInputRef}
               type="password"
@@ -135,7 +145,7 @@ export default function RegisterView() {
                 }
               }}
               placeholder="••••••••"
-              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:opacity-60"
               required
             />
             <p

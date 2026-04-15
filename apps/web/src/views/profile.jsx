@@ -25,7 +25,7 @@ function ProfileView() {
         setProfile(data)
         setPhone(data.phone || "")
         setCity(data.city || "")
-        setState(data.state || "")
+        setState(data.state_region || "")
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))

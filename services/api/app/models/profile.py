@@ -35,3 +35,7 @@ class Profile(Base):
     )
 
     account = relationship("Account", back_populates="profile")
+
+    @property
+    def email(self) -> str:
+        return self.account.email

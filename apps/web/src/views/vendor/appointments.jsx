@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Availability } from "@/components/ui/availability"
 import { Button } from "@/components/ui/button"
 import { getOpenings, deleteOpening, patchOpening, postOpening } from "@/lib/queries/openings"
+import { publishOpeningSlotsWithRollback } from "@/lib/vendorOpeningTimes"
 import { getBusinessReservations, cancelReservation } from "@/lib/queries/reservations"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -15,22 +16,6 @@ function formatTime(dateString) {
     hour: 'numeric',
     minute: '2-digit'
   })
-}
-
-function getNextDateForDay(dayIndex, timeStr) {
-  const now = new Date()
-  const result = new Date(now)
-
-  result.setDate(now.getDate() + ((dayIndex + 7 - now.getDay()) % 7))
-
-  const [hours, minutes] = timeStr.split(":")
-  result.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0)
-
-  if (result < now) {
-    result.setDate(result.getDate() + 7)
-  }
-
-  return result
 }
 
 function toLocalTimeString(dateString) {
@@ -118,24 +103,7 @@ export function VendorAppointmentsPage() {
   const handlePublish = async () => {
     setPublishing(true)
     try {
-      await Promise.all(
-        draftSlots.map(async (slot) => {
-          const starts_at = getNextDateForDay(slot.week_day, slot.start_time)
-          const ends_at = getNextDateForDay(slot.week_day, slot.end_time)
-          const expireMins = slot.duration ? parseInt(slot.duration, 10) : 30
-          const listing_expires_at = new Date(starts_at.getTime() - expireMins * 60000)
-
-          await postOpening({
-            title: slot.employee || "Available Appointment",
-            staff_name: slot.name || null,
-            starts_at: starts_at.toISOString(),
-            ends_at: ends_at.toISOString(),
-            listed_price: 50.00,
-            payment_option: "BOTH",
-            listing_expires_at: listing_expires_at.toISOString(),
-          })
-        })
-      )
+      await publishOpeningSlotsWithRollback(draftSlots, postOpening, deleteOpening)
 
       alert("Openings published successfully to the marketplace!")
       setDraftSlots([])

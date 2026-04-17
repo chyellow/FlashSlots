@@ -267,6 +267,7 @@ export function VendorAppointmentsPage() {
           endTime={24}
           useAmPm={true}
           timeIncrements={15}
+          mergeAdjacent={false}
         />
       </div>
 

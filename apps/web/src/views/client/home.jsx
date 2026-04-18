@@ -3,6 +3,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/componen
 import { getMyProfile } from "@/lib/queries/profile"
 import { getOpenings, getOpening } from "@/lib/queries/openings"
 import { getMyReservations, holdReservation, confirmReservation, cancelReservation } from "@/lib/queries/reservations"
+import { ProfileModal } from "@/components/ProfileModal"
 
 function formatTimer(seconds) {
   const min = String(Math.floor(seconds / 60)).padStart(2, "0")
@@ -27,6 +28,7 @@ export function ClientHomePage() {
   const [pending, setPending] = useState(null)   // Stores { reservation, opening }
   const [countdown, setCountdown] = useState(0)
   const [cancelTarget, setCancelTarget] = useState(null) // Stores { reservation, opening }
+  const [viewProfileTarget, setViewProfileTarget] = useState(null)
   
   const [profile, setProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(true)
@@ -199,6 +201,18 @@ export function ClientHomePage() {
                         <p className="text-xs text-muted-foreground mt-1">
                           Price: ${item.listed_price} · Staff: {item.staff_name || "N/A"}
                         </p>
+                        <button
+                          className="text-xs text-primary hover:underline mt-1"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setViewProfileTarget({
+                              accountId: item.posted_by_account_id,
+                              businessId: null,
+                            })
+                          }}
+                        >
+                          View Provider
+                        </button>
                       </div>
                       <button
                         className="rounded bg-primary px-3 py-1 h-fit text-xs text-primary-foreground disabled:opacity-40"
@@ -235,6 +249,18 @@ export function ClientHomePage() {
                         <p className="text-xs text-muted-foreground mt-1">
                            Status: {item.reservation.status}
                         </p>
+                        <button
+                          className="text-xs text-primary hover:underline mt-1"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setViewProfileTarget({
+                              accountId: item.opening.posted_by_account_id,
+                              businessId: null,
+                            })
+                          }}
+                        >
+                          View Provider
+                        </button>
                       </div>
                       <button
                         className="rounded border border-red-400 px-2 py-1 h-fit text-xs text-red-600 hover:bg-red-100 dark:hover:bg-red-950"
@@ -275,6 +301,12 @@ export function ClientHomePage() {
           </div>
         </div>
       )}
+
+      <ProfileModal
+        accountId={viewProfileTarget?.accountId}
+        businessId={viewProfileTarget?.businessId}
+        onClose={() => setViewProfileTarget(null)}
+      />
 
       {/* Cancellation Modal overlay */}
       {cancelTarget && (

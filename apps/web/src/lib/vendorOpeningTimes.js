@@ -51,8 +51,6 @@ export function getOpeningTimestamps(slot, expireMins) {
   return { starts_at, ends_at, listing_expires_at }
 }
 
-const DEFAULT_LISTED_PRICE = 50.0
-
 /**
  * Posts openings one at a time. On first failure, best-effort deletes openings
  * created in this batch so the user does not end up with a half-published set.
@@ -71,12 +69,17 @@ export async function publishOpeningSlotsWithRollback(slots, postOpening, delete
 
       const { starts_at, ends_at, listing_expires_at } = getOpeningTimestamps(slot, expireMins)
 
+      const price = parseFloat(slot.price)
+      if (!Number.isFinite(price) || price < 0) {
+        throw new Error("Each slot must have a valid price.")
+      }
+
       const created = await postOpening({
         title: slot.employee || "Available Appointment",
         staff_name: slot.name || null,
         starts_at: starts_at.toISOString(),
         ends_at: ends_at.toISOString(),
-        listed_price: DEFAULT_LISTED_PRICE,
+        listed_price: price,
         payment_option: "BOTH",
         listing_expires_at: listing_expires_at.toISOString(),
       })

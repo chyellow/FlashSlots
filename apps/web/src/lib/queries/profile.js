@@ -31,6 +31,10 @@ export const getProfile = async (username) => {
   return apiFetch(`/profiles/${username}`);
 };
 
+export const getProfileByAccountId = async (accountId) => {
+  return apiFetch(`/profiles/${accountId}`);
+};
+
 export const getMyProfile = async () => {
   const token = getToken();
   const res = await fetch(`${API_BASE}/profiles/me`, {
@@ -56,3 +60,4 @@ export const updateMyProfile = async (data) => {
   if (!res.ok) throw new Error("Could not update profile");
   return res.json();
 };
+

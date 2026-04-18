@@ -17,6 +17,18 @@ def get_my_profile(db: Session, account: Account) -> Profile:
     return profile
 
 
+def get_profile_by_account_id(db: Session, account_id: int) -> Profile:
+    profile = (
+        db.query(Profile)
+        .options(joinedload(Profile.account))
+        .filter(Profile.account_id == account_id)
+        .first()
+    )
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return profile
+
+
 def update_my_profile(db: Session, account: Account, payload: ProfileUpdate) -> Profile:
     profile = get_my_profile(db, account)
 

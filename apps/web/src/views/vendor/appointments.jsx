@@ -5,6 +5,7 @@ import { getOpenings, deleteOpening, patchOpening, postOpening } from "@/lib/que
 import { publishOpeningSlotsWithRollback } from "@/lib/vendorOpeningTimes"
 import { getBusinessReservations, cancelReservation } from "@/lib/queries/reservations"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ProfileModal } from "@/components/ProfileModal"
 
 function formatTime(dateString) {
   if (!dateString) return "Unknown time"
@@ -77,6 +78,7 @@ export function VendorAppointmentsPage() {
   })
   const [savingEdit, setSavingEdit] = useState(false)
   const [cancelTarget, setCancelTarget] = useState(null)
+  const [viewProfileTarget, setViewProfileTarget] = useState(null)
 
   const loadOpenings = async () => {
     setLoadingOpenings(true)
@@ -292,6 +294,14 @@ export function VendorAppointmentsPage() {
                     <p>Time: <span className="text-foreground">{formatTime(op.starts_at)}</span></p>
                     <p>Staff: {op.staff_name || "N/A"}</p>
                     <p>Client: {op.client_name || "N/A"}</p>
+                    {op.client_account_id && (
+                      <button
+                        className="text-xs text-primary hover:underline"
+                        onClick={() => setViewProfileTarget({ accountId: op.client_account_id, businessId: null })}
+                      >
+                        View Client
+                      </button>
+                    )}
                     <p>Price: ${op.listed_price}</p>
                   </div>
                 </div>
@@ -474,6 +484,12 @@ export function VendorAppointmentsPage() {
           </div>
         </div>
       )}
+
+      <ProfileModal
+        accountId={viewProfileTarget?.accountId}
+        businessId={viewProfileTarget?.businessId}
+        onClose={() => setViewProfileTarget(null)}
+      />
     </div>
   )
 }

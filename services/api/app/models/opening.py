@@ -52,3 +52,9 @@ class Opening(Base):
         if self.reservation and self.reservation.client and self.reservation.client.profile:
             return self.reservation.client.profile.display_name
         return None
+
+    @property
+    def client_account_id(self) -> int | None:
+        if self.reservation:
+            return self.reservation.client_account_id
+        return None

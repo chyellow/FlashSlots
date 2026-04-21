@@ -188,6 +188,7 @@ function useCalendarCreation({
 
     const handlePointerUp = (ev) => {
       const currentMins = getMinutesFromY(ev.clientY);
+      const didDrag = currentMins !== startMins;
 
       let finalStart = Math.min(startMins, currentMins);
       let finalEnd = Math.max(startMins, currentMins);
@@ -195,14 +196,11 @@ function useCalendarCreation({
       finalStart = Math.max(minStartMins, finalStart);
       finalEnd = Math.min(maxEndMins, finalEnd);
 
-      if (finalEnd - finalStart < timeIncrements) {
-        finalEnd = Math.min(finalStart + timeIncrements, maxEndMins);
-      }
-
-      if (finalEnd - finalStart <= timeIncrements) {
-        const oneHourEnd = finalStart + 60;
-        finalEnd = Math.min(oneHourEnd, maxEndMins);
-      }
+  if (!didDrag) {
+    finalEnd = Math.min(finalStart + 60, maxEndMins);
+  } else if (finalEnd - finalStart < timeIncrements) {
+    finalEnd = Math.min(finalStart + timeIncrements, maxEndMins);
+  }
 
       if (finalEnd > finalStart) {
         setPendingConfirmation({ start: finalStart, end: finalEnd });

@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react"
 import { getProfileByAccountId } from "@/lib/queries/profile"
 import { getBusinessById } from "@/lib/queries/business"
+import { getBusinessRating, getBusinessReviews, getClientStats } from "@/lib/queries/reviews"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { MapPin, Phone, Mail, Building2, Clock, X } from "lucide-react"
+import { MapPin, Phone, Mail, Clock, Star, XCircle, X } from "lucide-react"
 
 
 export function ProfileModal({ accountId, businessId, onClose }) {
   const [profile, setProfile] = useState(null)
   const [business, setBusiness] = useState(null)
+  const [rating, setRating] = useState(null)
+  const [reviews, setReviews] = useState([])
+  const [clientStats, setClientStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -19,6 +23,9 @@ export function ProfileModal({ accountId, businessId, onClose }) {
     setError(null)
     setProfile(null)
     setBusiness(null)
+    setRating(null)
+    setReviews([])
+    setClientStats(null)
 
     const fetchData = async () => {
       try {
@@ -28,6 +35,26 @@ export function ProfileModal({ accountId, businessId, onClose }) {
         ])
         setProfile(profileData)
         setBusiness(businessData)
+
+        if (businessData) {
+          try {
+            const [ratingData, reviewsData] = await Promise.all([
+              getBusinessRating(businessData.business_id),
+              getBusinessReviews(businessData.business_id),
+            ])
+            setRating(ratingData)
+            setReviews(reviewsData)
+          } catch {
+            // reviews not available yet
+          }
+        } else {
+          try {
+            const statsData = await getClientStats(accountId)
+            setClientStats(statsData)
+          } catch {
+            // stats not available yet
+          }
+        }
       } catch (err) {
         setError(err.message || "Failed to load profile")
       } finally {
@@ -87,6 +114,42 @@ export function ProfileModal({ accountId, businessId, onClose }) {
                   <p className="text-sm text-muted-foreground mt-0.5">@{profile.username}</p>
                 )}
               </div>
+
+              {rating && (
+                <div className="flex items-center gap-2">
+                  {rating.average_rating ? (
+                    <>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`h-4 w-4 ${
+                              star <= Math.round(rating.average_rating)
+                                ? "fill-amber-400 text-amber-400"
+                                : "text-muted-foreground/30"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm font-medium">{rating.average_rating}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({rating.total_reviews} review{rating.total_reviews !== 1 ? "s" : ""})
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No reviews yet</span>
+                  )}
+                </div>
+              )}
+
+              {clientStats && (
+                <div className="flex items-center gap-2 text-sm">
+                  <XCircle className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">
+                    {clientStats.cancellation_count} cancellation{clientStats.cancellation_count !== 1 ? "s" : ""}
+                  </span>
+                </div>
+              )}
             </div>
 
             <Separator />
@@ -109,41 +172,47 @@ export function ProfileModal({ accountId, businessId, onClose }) {
               />
             </div>
 
-            {business && (
+
+            {reviews.length > 0 && (
               <>
                 <Separator />
                 <div className="px-10 py-6 space-y-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <Star className="h-4 w-4 text-muted-foreground" />
                     <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                      Business
+                      Reviews
                     </h3>
                   </div>
                   <div className="space-y-3">
-                    <div>
-                      <p className="font-medium text-base">{business.display_name}</p>
-                      {business.description && (
-                        <p className="text-sm text-muted-foreground mt-1">{business.description}</p>
-                      )}
-                    </div>
-                    <ProfileField
-                      icon={MapPin}
-                      label="Address"
-                      value={[
-                        business.address_line1,
-                        [business.city, business.state_region, business.postal_code].filter(Boolean).join(", "),
-                      ].filter(Boolean).join("\n")}
-                      multiline
-                    />
-                    <div className="flex items-center gap-2">
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                        business.verification_status === "VERIFIED"
-                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200"
-                          : "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200"
-                      }`}>
-                        {business.verification_status}
-                      </span>
-                    </div>
+                    {reviews.map((review) => (
+                      <div key={review.review_id} className="rounded-lg border border-border p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{review.reviewer_name || "Client"}</span>
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`h-3 w-3 ${
+                                  star <= review.rating
+                                    ? "fill-amber-400 text-amber-400"
+                                    : "text-muted-foreground/30"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        {review.comment && (
+                          <p className="mt-1 text-sm text-muted-foreground">{review.comment}</p>
+                        )}
+                        <p className="mt-1 text-xs text-muted-foreground/60">
+                          {new Date(review.created_at).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </>

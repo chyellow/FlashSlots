@@ -9,6 +9,7 @@ from app.services.booking_service import (
     place_hold,
     confirm_reservation,
     cancel_reservation,
+    complete_reservation,
     list_my_reservations,
     list_business_reservations,
 )
@@ -42,6 +43,15 @@ def cancel(
         account: Account = Depends(get_current_account),
 ):
     return cancel_reservation(db, account, reservation_id, reason)
+
+
+@router.post("/{reservation_id}/complete", response_model=ReservationRead)
+def complete(
+        reservation_id: int,
+        db: Session = Depends(get_db),
+        account: Account = Depends(get_current_account),
+):
+    return complete_reservation(db, account, reservation_id)
 
 
 @router.get("/me", response_model=list[ReservationRead])

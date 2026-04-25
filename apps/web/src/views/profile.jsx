@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { getMyProfile, updateMyProfile } from "@/lib/queries/profile"
+import { getMyBusiness } from "@/lib/queries/business"
+import { getBusinessRating } from "@/lib/queries/reviews"
 import { useAuth } from "@/context/AuthContext"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, LogOut, Check, ChevronsUpDown } from "lucide-react"
+import { ArrowLeft, LogOut, Check, ChevronsUpDown, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command"
@@ -65,8 +67,9 @@ const US_STATES = [
 
 function ProfileView() {
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
   const [profile, setProfile] = useState(null)
+  const [rating, setRating] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [phone, setPhone] = useState("")
@@ -85,6 +88,13 @@ function ProfileView() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
+
+    if (user?.role === "BUSINESS") {
+      getMyBusiness()
+        .then((biz) => getBusinessRating(biz.business_id))
+        .then((r) => setRating(r))
+        .catch(() => {})
+    }
   }, [])
 
   async function handleSave() {
@@ -168,6 +178,32 @@ function ProfileView() {
               {profile.display_name}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">@{profile.username}</p>
+            {rating && (
+              <div className="flex items-center justify-center gap-2 mt-2">
+                {rating.average_rating ? (
+                  <>
+                    <div className="flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          className={`h-4 w-4 ${
+                            star <= Math.round(rating.average_rating)
+                              ? "fill-amber-400 text-amber-400"
+                              : "text-muted-foreground/30"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm font-medium">{rating.average_rating}</span>
+                    <span className="text-xs text-muted-foreground">
+                      ({rating.total_reviews} review{rating.total_reviews !== 1 ? "s" : ""})
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-xs text-muted-foreground">No reviews yet</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

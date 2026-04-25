@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button"
 import { getOpenings, deleteOpening, patchOpening, postOpening } from "@/lib/queries/openings"
 import { publishOpeningSlotsWithRollback } from "@/lib/vendorOpeningTimes"
 import { getBusinessReservations, cancelReservation } from "@/lib/queries/reservations"
+import { completeReservation } from "@/lib/queries/reviews"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProfileModal } from "@/components/ProfileModal"
+import { Star, CheckCircle } from "lucide-react"
 
 function formatTime(dateString) {
   if (!dateString) return "Unknown time"
@@ -67,6 +69,7 @@ function buildListingExpiresAt(startsAt, expirationMinutes) {
 export function VendorAppointmentsPage() {
   const [draftSlots, setDraftSlots] = useState([])
   const [openings, setOpenings] = useState([])
+  const [reservations, setReservations] = useState([])
   const [publishing, setPublishing] = useState(false)
   const [loadingOpenings, setLoadingOpenings] = useState(true)
   const [error, setError] = useState(null)
@@ -84,11 +87,23 @@ export function VendorAppointmentsPage() {
     setLoadingOpenings(true)
     setError(null)
     try {
-      const ops = await getOpenings(true) // mine=true
-      if (Array.isArray(ops)) {
-        setOpenings(ops.sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at)))
-      } else {
-        setOpenings([])
+      const [opsResult, resesResult] = await Promise.allSettled([
+        getOpenings(true),
+        getBusinessReservations(),
+      ])
+
+      const ops = opsResult.status === "fulfilled" && Array.isArray(opsResult.value)
+        ? opsResult.value.sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))
+        : []
+      const reses = resesResult.status === "fulfilled" && Array.isArray(resesResult.value)
+        ? resesResult.value
+        : []
+
+      setOpenings(ops)
+      setReservations(reses)
+
+      if (opsResult.status === "rejected") {
+        throw opsResult.reason
       }
     } catch (err) {
       console.error(err)
@@ -175,7 +190,6 @@ export function VendorAppointmentsPage() {
 
     try {
       if (cancelTarget.status === "BOOKED") {
-        const reservations = await getBusinessReservations()
         const matchingReservation = reservations.find(
           (reservation) => reservation.opening_id === cancelTarget.openingId
         )
@@ -196,9 +210,30 @@ export function VendorAppointmentsPage() {
     }
   }
 
+  const handleComplete = async (opening) => {
+    const res = reservations.find(r => r.opening_id === opening.opening_id && r.status === "CONFIRMED")
+    if (!res) {
+      alert("Could not find the reservation for this appointment.")
+      return
+    }
+
+    try {
+      await completeReservation(res.reservation_id)
+      loadOpenings()
+    } catch (err) {
+      alert(err.message || "Failed to mark as complete.")
+    }
+  }
+
+  const getReservationForOpening = (openingId) => {
+    return reservations.find(r => r.opening_id === openingId)
+  }
+
   const activeOpenings = openings.filter(o => o.status === 'OPEN' || o.status === 'ON_HOLD')
+  const completedOpenings = openings.filter(o => o.status === 'COMPLETED')
   const bookedOpenings = openings.filter(o => o.status === 'BOOKED')
   const pastOpenings = openings.filter(o => o.status === 'EXPIRED' || o.status === 'CANCELLED')
+
   const calendarEvents = useMemo(() => {
     const now = new Date()
     const calendarWindowEnd = new Date(now)
@@ -277,6 +312,7 @@ export function VendorAppointmentsPage() {
         <TabsList className="mb-4">
           <TabsTrigger value="booked">Booked ({bookedOpenings.length})</TabsTrigger>
           <TabsTrigger value="active">Active Listings ({activeOpenings.length})</TabsTrigger>
+          <TabsTrigger value="completed">Completed ({completedOpenings.length})</TabsTrigger>
           <TabsTrigger value="past">Past / Cancelled ({pastOpenings.length})</TabsTrigger>
         </TabsList>
 
@@ -304,6 +340,13 @@ export function VendorAppointmentsPage() {
                     )}
                     <p>Price: ${op.listed_price}</p>
                   </div>
+                  <button
+                    onClick={() => handleComplete(op)}
+                    className="mt-3 flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 transition-colors"
+                  >
+                    <CheckCircle className="h-3.5 w-3.5" />
+                    Mark Complete
+                  </button>
                 </div>
               ))}
             </div>
@@ -332,7 +375,7 @@ export function VendorAppointmentsPage() {
                       <p>Price: ${op.listed_price}</p>
                     </div>
                   </div>
-                  <button 
+                  <button
                     onClick={() => requestCancelForOpening(op)}
                     className="mt-4 text-xs font-medium text-red-600 hover:text-red-700 w-fit"
                   >
@@ -340,6 +383,43 @@ export function VendorAppointmentsPage() {
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="completed" className="space-y-4">
+          {completedOpenings.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center border rounded-lg bg-card border-dashed">
+              No completed appointments yet.
+            </p>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {completedOpenings.map(op => {
+                const res = getReservationForOpening(op.opening_id)
+                return (
+                  <div key={op.opening_id} className="rounded-lg border bg-card p-4 shadow-sm">
+                    <div className="flex items-start justify-between">
+                      <h3 className="font-semibold text-lg">{op.title || "Appointment"}</h3>
+                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200">
+                        Completed
+                      </span>
+                    </div>
+                    <div className="mt-2 text-sm text-muted-foreground space-y-1">
+                      <p>Time: <span className="text-foreground">{formatTime(op.starts_at)}</span></p>
+                      <p>Staff: {op.staff_name || "N/A"}</p>
+                      <p>Client: {op.client_name || "N/A"}</p>
+                      {op.client_account_id && (
+                        <button
+                          className="text-xs text-primary hover:underline"
+                          onClick={() => setViewProfileTarget({ accountId: op.client_account_id, businessId: null })}
+                        >
+                          View Client
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </TabsContent>

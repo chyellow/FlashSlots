@@ -238,6 +238,42 @@ def cancel_reservation(
     return reservation
 
 
+def complete_reservation(db: Session, account: Account, reservation_id: int) -> Reservation:
+    reservation = (
+        db.query(Reservation)
+        .filter(Reservation.reservation_id == reservation_id)
+        .with_for_update()
+        .first()
+    )
+
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    opening = db.get(Opening, reservation.opening_id)
+    business = _get_vendor_business(db, account)
+    is_vendor = business is not None and opening is not None and opening.business_id == business.business_id
+
+    if not is_vendor:
+        raise HTTPException(status_code=403, detail="Only the vendor can complete appointments")
+
+    if reservation.status != "CONFIRMED":
+        raise HTTPException(status_code=409, detail="Only confirmed reservations can be completed")
+
+    now = _now()
+    reservation.status = "COMPLETED"
+    reservation.completed_at = now
+
+    if opening:
+        opening.status = "COMPLETED"
+        opening.version += 1
+        db.add(opening)
+
+    db.add(reservation)
+    db.commit()
+    db.refresh(reservation)
+    return reservation
+
+
 def list_my_reservations(db: Session, account: Account) -> list[Reservation]:
     expire_stale_holds(db)
 

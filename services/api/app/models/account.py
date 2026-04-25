@@ -42,3 +42,5 @@ class Account(Base):
         back_populates="cancelled_by",
         foreign_keys="Reservation.cancelled_by_account_id",
     )
+
+    reviews = relationship("Review", back_populates="reviewer")

@@ -7,6 +7,7 @@ from app.api.v1.routes.health import router as health_router
 from app.api.v1.routes.openings import router as openings_router
 from app.api.v1.routes.profiles import router as profiles_router
 from app.api.v1.routes.reservations import router as reservations_router
+from app.api.v1.routes.reviews import router as reviews_router
 
 api_router = APIRouter()
 
@@ -17,3 +18,4 @@ api_router.include_router(profiles_router)
 api_router.include_router(businesses_router)
 api_router.include_router(openings_router)
 api_router.include_router(reservations_router)
+api_router.include_router(reviews_router)

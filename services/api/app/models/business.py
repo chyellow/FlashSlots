@@ -42,3 +42,4 @@ class Business(Base):
 
     owner = relationship("Account", back_populates="business")
     openings = relationship("Opening", back_populates="business")
+    reviews = relationship("Review", back_populates="business")

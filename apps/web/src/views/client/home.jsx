@@ -3,7 +3,10 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/componen
 import { getMyProfile } from "@/lib/queries/profile"
 import { getOpenings, getOpening } from "@/lib/queries/openings"
 import { getMyReservations, holdReservation, confirmReservation, cancelReservation } from "@/lib/queries/reservations"
+import { getMyReviews } from "@/lib/queries/reviews"
 import { ProfileModal } from "@/components/ProfileModal"
+import { ReviewModal } from "@/components/ReviewModal"
+import { Star } from "lucide-react"
 
 function formatTimer(seconds) {
   const min = String(Math.floor(seconds / 60)).padStart(2, "0")
@@ -13,41 +16,49 @@ function formatTimer(seconds) {
 
 function formatTime(dateString) {
   const d = new Date(dateString)
-  return d.toLocaleString("en-US", { 
-    weekday: 'short', 
-    month: 'short', 
-    day: 'numeric', 
-    hour: 'numeric', 
-    minute: '2-digit' 
+  return d.toLocaleString("en-US", {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
   })
 }
 
 export function ClientHomePage() {
   const [available, setAvailable] = useState([])
-  const [confirmed, setConfirmed] = useState([]) // Stores { reservation, opening }
-  const [pending, setPending] = useState(null)   // Stores { reservation, opening }
+  const [confirmed, setConfirmed] = useState([])
+  const [completed, setCompleted] = useState([])
+  const [pending, setPending] = useState(null)
   const [countdown, setCountdown] = useState(0)
-  const [cancelTarget, setCancelTarget] = useState(null) // Stores { reservation, opening }
+  const [cancelTarget, setCancelTarget] = useState(null)
   const [viewProfileTarget, setViewProfileTarget] = useState(null)
-  
+  const [reviewTarget, setReviewTarget] = useState(null)
+  const [reviewedReservationIds, setReviewedReservationIds] = useState(new Set())
+
   const [profile, setProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(true)
   const [dataLoading, setDataLoading] = useState(true)
 
   const canSelect = pending === null && cancelTarget === null
 
-  // Fetch initial data
   const loadData = async () => {
     setDataLoading(true)
     try {
       const [ops, reses] = await Promise.all([
         getOpenings(),
-        getMyReservations()
+        getMyReservations(),
       ])
+
+      try {
+        const myReviews = await getMyReviews()
+        setReviewedReservationIds(new Set(myReviews.map(r => r.reservation_id)))
+      } catch {
+        setReviewedReservationIds(new Set())
+      }
 
       setAvailable(ops)
 
-      // Process confirmed reservations
       const confirmedRes = reses.filter(r => r.status === 'CONFIRMED')
       const confirmedWithOpenings = await Promise.all(
         confirmedRes.map(async (r) => {
@@ -57,7 +68,15 @@ export function ClientHomePage() {
       )
       setConfirmed(confirmedWithOpenings)
 
-      // Rehydrate a pending hold if the user refreshed the page
+      const completedRes = reses.filter(r => r.status === 'COMPLETED')
+      const completedWithOpenings = await Promise.all(
+        completedRes.map(async (r) => {
+          const op = await getOpening(r.opening_id)
+          return { reservation: r, opening: op }
+        })
+      )
+      setCompleted(completedWithOpenings)
+
       const holdRes = reses.find(r => r.status === 'HOLD')
       if (holdRes && holdRes.hold_expires_at) {
         const expiresAt = new Date(holdRes.hold_expires_at).getTime()
@@ -66,7 +85,6 @@ export function ClientHomePage() {
           const op = await getOpening(holdRes.opening_id)
           setPending({ reservation: holdRes, opening: op })
           setCountdown(Math.floor((expiresAt - now) / 1000))
-          // Remove it from the available list temporarily
           setAvailable(prev => prev.filter(a => a.opening_id !== holdRes.opening_id))
         }
       }
@@ -86,14 +104,12 @@ export function ClientHomePage() {
       .finally(() => setProfileLoading(false))
   }, [])
 
-  // Timer countdown hook for holds
   useEffect(() => {
     if (!pending) return
 
     const interval = window.setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          // Time expired, refresh the board
           setPending(null)
           loadData()
           return 0
@@ -107,16 +123,15 @@ export function ClientHomePage() {
 
   const pendingMessage = useMemo(() => {
     if (!pending) return null
-    return `Confirm ${pending.opening.title || 'Appointment'} by ${formatTimer(countdown)} or it will expire` 
+    return `Confirm ${pending.opening.title || 'Appointment'} by ${formatTimer(countdown)} or it will expire`
   }, [pending, countdown])
 
-  // Actions
   const selectAppointment = async (opening) => {
     if (!canSelect) return
     try {
       const reservation = await holdReservation(opening.opening_id)
       const expiresAt = new Date(reservation.hold_expires_at).getTime()
-      
+
       setPending({ reservation, opening })
       setCountdown(Math.floor((expiresAt - Date.now()) / 1000))
       setAvailable((old) => old.filter((a) => a.opening_id !== opening.opening_id))
@@ -159,7 +174,7 @@ export function ClientHomePage() {
       await cancelReservation(cancelTarget.reservation.reservation_id, "Client cancellation")
       setConfirmed((old) => old.filter((a) => a.reservation.reservation_id !== cancelTarget.reservation.reservation_id))
       setCancelTarget(null)
-      loadData() // Refresh to see if it pops back into available
+      loadData()
     } catch (err) {
       alert(err.message || "Failed to cancel reservation.")
     }
@@ -207,7 +222,7 @@ export function ClientHomePage() {
                             e.stopPropagation()
                             setViewProfileTarget({
                               accountId: item.posted_by_account_id,
-                              businessId: null,
+                              businessId: item.business_id,
                             })
                           }}
                         >
@@ -255,7 +270,7 @@ export function ClientHomePage() {
                             e.stopPropagation()
                             setViewProfileTarget({
                               accountId: item.opening.posted_by_account_id,
-                              businessId: null,
+                              businessId: item.opening.business_id,
                             })
                           }}
                         >
@@ -273,11 +288,59 @@ export function ClientHomePage() {
                 ))}
               </ul>
             )}
+
+            {completed.length > 0 && (
+              <>
+                <h2 className="text-lg font-semibold mt-4">Completed Appointments</h2>
+                <ul className="space-y-2">
+                  {completed.map((item) => (
+                    <li key={item.reservation.reservation_id} className="rounded-lg border p-3 bg-background">
+                      <div className="flex justify-between gap-3">
+                        <div className="text-left">
+                          <p className="font-medium">{item.opening.title || "Appointment"}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {formatTime(item.opening.starts_at)}
+                          </p>
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+                            Completed
+                          </p>
+                          <button
+                            className="text-xs text-primary hover:underline mt-1"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setViewProfileTarget({
+                                accountId: item.opening.posted_by_account_id,
+                                businessId: item.opening.business_id,
+                              })
+                            }}
+                          >
+                            View Provider
+                          </button>
+                        </div>
+                        {!reviewedReservationIds.has(item.reservation.reservation_id) ? (
+                          <button
+                            className="flex items-center gap-1 rounded bg-amber-100 px-2 py-1 h-fit text-xs font-medium text-amber-900 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-100 dark:hover:bg-amber-500/30"
+                            onClick={() => setReviewTarget(item)}
+                          >
+                            <Star className="h-3 w-3" />
+                            Review
+                          </button>
+                        ) : (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                            Reviewed
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
 
-      {/* Confirmation Modal overlay */}
       {pending && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={cancelPending} />
@@ -308,7 +371,15 @@ export function ClientHomePage() {
         onClose={() => setViewProfileTarget(null)}
       />
 
-      {/* Cancellation Modal overlay */}
+      {reviewTarget && (
+        <ReviewModal
+          reservationId={reviewTarget.reservation.reservation_id}
+          appointmentTitle={reviewTarget.opening.title}
+          onClose={() => setReviewTarget(null)}
+          onReviewSubmitted={() => loadData()}
+        />
+      )}
+
       {cancelTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={dismissCancel} />

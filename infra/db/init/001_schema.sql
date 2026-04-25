@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS openings (
     payment_option TEXT NOT NULL
     CHECK (payment_option IN ('CARD', 'CASH', 'BOTH')),
     status TEXT NOT NULL DEFAULT 'OPEN'
-    CHECK (status IN ('OPEN', 'ON_HOLD', 'BOOKED', 'EXPIRED', 'CANCELLED')),
+    CHECK (status IN ('OPEN', 'ON_HOLD', 'BOOKED', 'COMPLETED', 'EXPIRED', 'CANCELLED')),
     listing_expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -154,6 +154,29 @@ CREATE INDEX IF NOT EXISTS idx_res_status_created
     ON reservations (status, created_at);
 
 -- =========================
+-- reviews
+-- =========================
+CREATE TABLE IF NOT EXISTS reviews (
+    review_id BIGSERIAL PRIMARY KEY,
+    reservation_id BIGINT NOT NULL UNIQUE
+        REFERENCES reservations(reservation_id) ON DELETE CASCADE,
+    reviewer_account_id BIGINT NOT NULL
+        REFERENCES accounts(account_id) ON DELETE CASCADE,
+    business_id BIGINT NOT NULL
+        REFERENCES businesses(business_id) ON DELETE CASCADE,
+    rating SMALLINT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_business
+    ON reviews (business_id, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_reviewer
+    ON reviews (reviewer_account_id);
+
+-- =========================
 -- updated_at triggers
 -- =========================
 DROP TRIGGER IF EXISTS trg_accounts_set_updated_at ON accounts;
@@ -183,6 +206,12 @@ CREATE TRIGGER trg_openings_set_updated_at
 DROP TRIGGER IF EXISTS trg_reservations_set_updated_at ON reservations;
 CREATE TRIGGER trg_reservations_set_updated_at
     BEFORE UPDATE ON reservations
+    FOR EACH ROW
+    EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_reviews_set_updated_at ON reviews;
+CREATE TRIGGER trg_reviews_set_updated_at
+    BEFORE UPDATE ON reviews
     FOR EACH ROW
     EXECUTE FUNCTION set_updated_at();
 

@@ -146,6 +146,11 @@ vite.config.ts.timestamp-*
 venv/
 *.egg-info/
 
+# pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
 # Python
 .venv/
 venv/

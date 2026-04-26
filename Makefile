@@ -1,4 +1,8 @@
-.PHONY: dev db backend frontend stop setup
+.PHONY: dev db backend frontend stop setup test
+
+# Run Python test suite (pytest); see tests/README.md
+test:
+	pytest
 
 # Default command that runs all services concurrently
 dev:

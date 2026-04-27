@@ -274,7 +274,7 @@ export function ClientHomePage() {
                           {getProviderName(item)}
                         </button>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {formatTime(item.starts_at)}
+                          {formatTime(item.starts_at)} - {formatTime(item.ends_at).split(',')[2].trim()}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           Price: ${item.listed_price} · Staff: {item.staff_name || "N/A"}
@@ -322,7 +322,7 @@ export function ClientHomePage() {
                           {getProviderName(item.opening)}
                         </button>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {formatTime(item.opening.starts_at)}
+                          {formatTime(item.opening.starts_at)} - {formatTime(item.opening.ends_at).split(',')[2].trim()}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                            Status: {item.reservation.status}

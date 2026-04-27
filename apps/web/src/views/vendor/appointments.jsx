@@ -301,7 +301,7 @@ export function VendorAppointmentsPage() {
             </div>
           </div>
           {draftSlots.length > 0 && (
-            <p className="max-w-xs text-right text-xs font-medium text-amber-700 dark:text-amber-300">
+            <p className="whitespace-nowrap text-right text-sm font-medium text-amber-700 dark:text-amber-300">
               You have {draftSlots.length} unpublished slot{draftSlots.length === 1 ? "" : "s"}. Hit Publish to make {draftSlots.length === 1 ? "it" : "them"} visible to clients.
             </p>
           )}

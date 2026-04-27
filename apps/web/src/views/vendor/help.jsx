@@ -11,12 +11,12 @@ const faqs = [
   {
     question: "What happens if I create a slot but do not publish it?",
     answer:
-      "Unpublished slots remain drafts. Clients cannot see or book them until you hit Publish, which gives you a chance to review the time, price, and expiration settings first.",
+      "Unpublished slots remain as temporary openings that disappear unless confirmed and published. Clients cannot see or book them until you hit Publish, which gives you a chance to review the time, price, and expiration settings first.",
   },
   {
     question: "Can I edit or cancel an appointment after it is posted?",
     answer:
-      "Yes. Active calendar listings can be opened from the schedule so you can adjust appointment details, and active listings can also be canceled from the dashboard if plans change.",
+      "Yes. Published calendar listings can be opened from the schedule so you can adjust appointment details, and active listings can also be canceled from the dashboard if plans change.",
   },
   {
     question: "What do the appointment statuses mean?",

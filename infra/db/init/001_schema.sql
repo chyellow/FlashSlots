@@ -215,4 +215,27 @@ CREATE TRIGGER trg_reviews_set_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION set_updated_at();
 
+-- =========================
+-- favorites
+-- =========================
+CREATE TABLE IF NOT EXISTS favorites (
+    favorite_id BIGSERIAL PRIAMRY KEY,
+
+    client_account_id BIGINT NOT NULL
+        REFERENCES accounts(account_id) ON DELETE CASCADE,
+
+    business_id BIGINT NOT NULL
+        REFERENCES businesses(business_id) ON DELETE CASCADE,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE (client_account_id, business_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_favorites_client
+    ON favorites (client_account_id);
+
+CREATE INDEX IF NOT EXISTS idx_favorite_business
+    ON favorites (business_id);
+
 COMMIT;

@@ -43,3 +43,4 @@ class Business(Base):
     owner = relationship("Account", back_populates="business")
     openings = relationship("Opening", back_populates="business")
     reviews = relationship("Review", back_populates="business")
+    favorited_by = relationship("Favorite", foreign_keys="Favorite.business_id", back_populates="business")

@@ -44,3 +44,5 @@ class Account(Base):
     )
 
     reviews = relationship("Review", back_populates="reviewer")
+
+    favorites = relationship("Favorite", foreign_keys="Favorite.client_account_id", back_populates = "client", cascade="all, delete-orphan")

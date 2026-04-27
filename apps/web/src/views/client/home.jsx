@@ -4,10 +4,10 @@ import { getMyProfile } from "@/lib/queries/profile"
 import { getOpenings, getOpening } from "@/lib/queries/openings"
 import { getBusinessById } from "@/lib/queries/business"
 import { getMyReservations, holdReservation, confirmReservation, cancelReservation } from "@/lib/queries/reservations"
-import { completeReservation, getMyReviews } from "@/lib/queries/reviews"
+import { getMyReviews } from "@/lib/queries/reviews"
 import { ProfileModal } from "@/components/ProfileModal"
 import { ReviewModal } from "@/components/ReviewModal"
-import { CheckCircle, ChevronDown, Star } from "lucide-react"
+import { ChevronDown, Star } from "lucide-react"
 
 function formatTimer(seconds) {
   const min = String(Math.floor(seconds / 60)).padStart(2, "0")
@@ -34,8 +34,9 @@ export function ClientHomePage() {
   const [pending, setPending] = useState(null)
   const [countdown, setCountdown] = useState(0)
   const [cancelTarget, setCancelTarget] = useState(null)
-  const [completingReservationId, setCompletingReservationId] = useState(null)
   const [completedMenuOpen, setCompletedMenuOpen] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const [viewProfileTarget, setViewProfileTarget] = useState(null)
   const [reviewTarget, setReviewTarget] = useState(null)
   const [reviewedReservationIds, setReviewedReservationIds] = useState(new Set())
@@ -173,7 +174,8 @@ export function ClientHomePage() {
   }
 
   const confirmPending = async () => {
-    if (!pending) return
+    if (!pending || confirming) return
+    setConfirming(true)
     try {
       const confirmedRes = await confirmReservation(pending.reservation.reservation_id)
       setConfirmed((old) => [...old, { reservation: confirmedRes, opening: pending.opening }])
@@ -181,6 +183,8 @@ export function ClientHomePage() {
       setCountdown(0)
     } catch (err) {
       alert(err.message || "Failed to confirm reservation.")
+    } finally {
+      setConfirming(false)
     }
   }
 
@@ -201,7 +205,8 @@ export function ClientHomePage() {
   }
 
   const confirmCancel = async () => {
-    if (!cancelTarget) return
+    if (!cancelTarget || cancelling) return
+    setCancelling(true)
     try {
       await cancelReservation(cancelTarget.reservation.reservation_id, "Client cancellation")
       setConfirmed((old) => old.filter((a) => a.reservation.reservation_id !== cancelTarget.reservation.reservation_id))
@@ -209,30 +214,13 @@ export function ClientHomePage() {
       loadData()
     } catch (err) {
       alert(err.message || "Failed to cancel reservation.")
+    } finally {
+      setCancelling(false)
     }
   }
 
   const dismissCancel = () => {
     setCancelTarget(null)
-  }
-
-  const handleComplete = async (item) => {
-    setCompletingReservationId(item.reservation.reservation_id)
-    try {
-      const completedReservation = await completeReservation(item.reservation.reservation_id)
-      setConfirmed((old) =>
-        old.filter((entry) => entry.reservation.reservation_id !== item.reservation.reservation_id)
-      )
-      setCompleted((old) => [
-        { reservation: completedReservation, opening: item.opening },
-        ...old,
-      ])
-      setCompletedMenuOpen(true)
-    } catch (err) {
-      alert(err.message || "Failed to mark appointment as complete.")
-    } finally {
-      setCompletingReservationId(null)
-    }
   }
 
   const openProviderProfile = (opening) => {
@@ -343,23 +331,12 @@ export function ClientHomePage() {
                           Appointment type: {getAppointmentType(item.opening)}
                         </p>
                       </div>
-                      <div className="flex h-fit flex-col items-end gap-2">
-                        <button
-                          className="flex items-center gap-1 rounded bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-                          onClick={() => handleComplete(item)}
-                          disabled={completingReservationId === item.reservation.reservation_id}
-                        >
-                          <CheckCircle className="h-3 w-3" />
-                          {completingReservationId === item.reservation.reservation_id ? "Completing..." : "Mark Complete"}
-                        </button>
-                        <button
-                          className="rounded border border-red-400 px-2 py-1 text-xs text-red-600 hover:bg-red-100 dark:hover:bg-red-950"
-                          onClick={() => requestCancel(item)}
-                          disabled={completingReservationId === item.reservation.reservation_id}
-                        >
-                          Cancel
-                        </button>
-                      </div>
+                      <button
+                        className="rounded border border-red-400 px-2 py-1 h-fit text-xs text-red-600 hover:bg-red-100 dark:hover:bg-red-950"
+                        onClick={() => requestCancel(item)}
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </li>
                 ))}
@@ -444,16 +421,18 @@ export function ClientHomePage() {
             <p className="mt-2 text-sm text-muted-foreground">{pendingMessage}</p>
             <div className="mt-4 flex justify-end gap-2">
               <button
-                className="rounded px-3 py-1 border border-border text-sm text-muted-foreground hover:bg-muted/20"
+                className="rounded px-3 py-1 border border-border text-sm text-muted-foreground hover:bg-muted/20 disabled:opacity-50"
                 onClick={cancelPending}
+                disabled={confirming}
               >
                 Cancel
               </button>
               <button
-                className="rounded px-3 py-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                className="rounded px-3 py-1 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 onClick={confirmPending}
+                disabled={confirming}
               >
-                Confirm
+                {confirming ? "Confirming..." : "Confirm"}
               </button>
             </div>
           </div>
@@ -488,16 +467,18 @@ export function ClientHomePage() {
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
-                className="rounded px-3 py-1 border border-border text-sm text-muted-foreground hover:bg-muted/20"
+                className="rounded px-3 py-1 border border-border text-sm text-muted-foreground hover:bg-muted/20 disabled:opacity-50"
                 onClick={dismissCancel}
+                disabled={cancelling}
               >
                 Keep
               </button>
               <button
-                className="rounded px-3 py-1 bg-red-600 text-white hover:bg-red-700"
+                className="rounded px-3 py-1 bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                 onClick={confirmCancel}
+                disabled={cancelling}
               >
-                Cancel Appointment
+                {cancelling ? "Cancelling..." : "Cancel Appointment"}
               </button>
             </div>
           </div>

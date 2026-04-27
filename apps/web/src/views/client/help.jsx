@@ -11,7 +11,7 @@ const faqs = [
   {
     question: "What happens when an appointment is on hold?",
     answer:
-      "A hold reserves the appointment for a short time while you decide whether to confirm it. If the timer expires or you cancel, the opening can become available again.",
+      "A hold reserves the appointment for a short time while you decide whether to confirm it. If the timer expires or you cancel, the opening can become available again to the public.",
   },
   {
     question: "How can I learn more about a provider before booking?",

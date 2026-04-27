@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from "react"
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 import { getMyProfile } from "@/lib/queries/profile"
 import { getOpenings, getOpening } from "@/lib/queries/openings"
+import { getBusinessById } from "@/lib/queries/business"
 import { getMyReservations, holdReservation, confirmReservation, cancelReservation } from "@/lib/queries/reservations"
-import { getMyReviews } from "@/lib/queries/reviews"
+import { completeReservation, getMyReviews } from "@/lib/queries/reviews"
 import { ProfileModal } from "@/components/ProfileModal"
 import { ReviewModal } from "@/components/ReviewModal"
-import { Star } from "lucide-react"
+import { CheckCircle, ChevronDown, Star } from "lucide-react"
 
 function formatTimer(seconds) {
   const min = String(Math.floor(seconds / 60)).padStart(2, "0")
@@ -29,9 +30,12 @@ export function ClientHomePage() {
   const [available, setAvailable] = useState([])
   const [confirmed, setConfirmed] = useState([])
   const [completed, setCompleted] = useState([])
+  const [businessNamesById, setBusinessNamesById] = useState({})
   const [pending, setPending] = useState(null)
   const [countdown, setCountdown] = useState(0)
   const [cancelTarget, setCancelTarget] = useState(null)
+  const [completingReservationId, setCompletingReservationId] = useState(null)
+  const [completedMenuOpen, setCompletedMenuOpen] = useState(false)
   const [viewProfileTarget, setViewProfileTarget] = useState(null)
   const [reviewTarget, setReviewTarget] = useState(null)
   const [reviewedReservationIds, setReviewedReservationIds] = useState(new Set())
@@ -41,6 +45,28 @@ export function ClientHomePage() {
   const [dataLoading, setDataLoading] = useState(true)
 
   const canSelect = pending === null && cancelTarget === null
+
+  const loadBusinessNames = async (openings) => {
+    const businessIds = [...new Set(openings.map((opening) => opening.business_id).filter(Boolean))]
+
+    if (businessIds.length === 0) {
+      setBusinessNamesById({})
+      return
+    }
+
+    const results = await Promise.allSettled(
+      businessIds.map((businessId) => getBusinessById(businessId))
+    )
+
+    const namesById = results.reduce((acc, result, index) => {
+      if (result.status === "fulfilled" && result.value?.display_name) {
+        acc[businessIds[index]] = result.value.display_name
+      }
+      return acc
+    }, {})
+
+    setBusinessNamesById(namesById)
+  }
 
   const loadData = async () => {
     setDataLoading(true)
@@ -56,8 +82,6 @@ export function ClientHomePage() {
       } catch {
         setReviewedReservationIds(new Set())
       }
-
-      setAvailable(ops)
 
       const confirmedRes = reses.filter(r => r.status === 'CONFIRMED')
       const confirmedWithOpenings = await Promise.all(
@@ -75,6 +99,14 @@ export function ClientHomePage() {
           return { reservation: r, opening: op }
         })
       )
+
+      await loadBusinessNames([
+        ...ops,
+        ...confirmedWithOpenings.map((item) => item.opening),
+        ...completedWithOpenings.map((item) => item.opening),
+      ])
+
+      setAvailable(ops)
       setCompleted(completedWithOpenings)
 
       const holdRes = reses.find(r => r.status === 'HOLD')
@@ -184,6 +216,40 @@ export function ClientHomePage() {
     setCancelTarget(null)
   }
 
+  const handleComplete = async (item) => {
+    setCompletingReservationId(item.reservation.reservation_id)
+    try {
+      const completedReservation = await completeReservation(item.reservation.reservation_id)
+      setConfirmed((old) =>
+        old.filter((entry) => entry.reservation.reservation_id !== item.reservation.reservation_id)
+      )
+      setCompleted((old) => [
+        { reservation: completedReservation, opening: item.opening },
+        ...old,
+      ])
+      setCompletedMenuOpen(true)
+    } catch (err) {
+      alert(err.message || "Failed to mark appointment as complete.")
+    } finally {
+      setCompletingReservationId(null)
+    }
+  }
+
+  const openProviderProfile = (opening) => {
+    setViewProfileTarget({
+      accountId: opening.posted_by_account_id,
+      businessId: opening.business_id,
+    })
+  }
+
+  const getProviderName = (opening) => {
+    return businessNamesById[opening.business_id] || opening.title || "Provider"
+  }
+
+  const getAppointmentType = (opening) => {
+    return opening.title || "Appointment"
+  }
+
   return (
     <div className="relative flex h-[calc(100vh-4.75rem)] w-full flex-1 flex-col rounded-lg border bg-card p-4 shadow-sm">
       <header className="mb-4 flex items-center justify-center">
@@ -209,25 +275,25 @@ export function ClientHomePage() {
                   <li key={item.opening_id} className="rounded-lg border p-3">
                     <div className="flex justify-between gap-3">
                       <div className="text-left">
-                        <p className="font-medium">{item.title || "Appointment"}</p>
+                        <button
+                          type="button"
+                          className="text-left font-medium transition-colors hover:text-primary hover:underline"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openProviderProfile(item)
+                          }}
+                        >
+                          {getProviderName(item)}
+                        </button>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {formatTime(item.starts_at)}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           Price: ${item.listed_price} · Staff: {item.staff_name || "N/A"}
                         </p>
-                        <button
-                          className="text-xs text-primary hover:underline mt-1"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setViewProfileTarget({
-                              accountId: item.posted_by_account_id,
-                              businessId: item.business_id,
-                            })
-                          }}
-                        >
-                          View Provider
-                        </button>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Appointment type: {getAppointmentType(item)}
+                        </p>
                       </div>
                       <button
                         className="rounded bg-primary px-3 py-1 h-fit text-xs text-primary-foreground disabled:opacity-40"
@@ -257,32 +323,43 @@ export function ClientHomePage() {
                   <li key={item.reservation.reservation_id} className="rounded-lg border p-3 bg-background">
                     <div className="flex justify-between gap-3">
                       <div className="text-left">
-                        <p className="font-medium">{item.opening.title || "Appointment"}</p>
+                        <button
+                          type="button"
+                          className="text-left font-medium transition-colors hover:text-primary hover:underline"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openProviderProfile(item.opening)
+                          }}
+                        >
+                          {getProviderName(item.opening)}
+                        </button>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {formatTime(item.opening.starts_at)}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                            Status: {item.reservation.status}
                         </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Appointment type: {getAppointmentType(item.opening)}
+                        </p>
+                      </div>
+                      <div className="flex h-fit flex-col items-end gap-2">
                         <button
-                          className="text-xs text-primary hover:underline mt-1"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setViewProfileTarget({
-                              accountId: item.opening.posted_by_account_id,
-                              businessId: item.opening.business_id,
-                            })
-                          }}
+                          className="flex items-center gap-1 rounded bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                          onClick={() => handleComplete(item)}
+                          disabled={completingReservationId === item.reservation.reservation_id}
                         >
-                          View Provider
+                          <CheckCircle className="h-3 w-3" />
+                          {completingReservationId === item.reservation.reservation_id ? "Completing..." : "Mark Complete"}
+                        </button>
+                        <button
+                          className="rounded border border-red-400 px-2 py-1 text-xs text-red-600 hover:bg-red-100 dark:hover:bg-red-950"
+                          onClick={() => requestCancel(item)}
+                          disabled={completingReservationId === item.reservation.reservation_id}
+                        >
+                          Cancel
                         </button>
                       </div>
-                      <button
-                        className="rounded border border-red-400 px-2 py-1 h-fit text-xs text-red-600 hover:bg-red-100 dark:hover:bg-red-950"
-                        onClick={() => requestCancel(item)}
-                      >
-                        Cancel
-                      </button>
                     </div>
                   </li>
                 ))}
@@ -290,52 +367,70 @@ export function ClientHomePage() {
             )}
 
             {completed.length > 0 && (
-              <>
-                <h2 className="text-lg font-semibold mt-4">Completed Appointments</h2>
-                <ul className="space-y-2">
-                  {completed.map((item) => (
-                    <li key={item.reservation.reservation_id} className="rounded-lg border p-3 bg-background">
-                      <div className="flex justify-between gap-3">
-                        <div className="text-left">
-                          <p className="font-medium">{item.opening.title || "Appointment"}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {formatTime(item.opening.starts_at)}
-                          </p>
-                          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
-                            Completed
-                          </p>
-                          <button
-                            className="text-xs text-primary hover:underline mt-1"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setViewProfileTarget({
-                                accountId: item.opening.posted_by_account_id,
-                                businessId: item.opening.business_id,
-                              })
-                            }}
-                          >
-                            View Provider
-                          </button>
+              <div className="mt-4 overflow-hidden rounded-lg border bg-background/60">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                  onClick={() => setCompletedMenuOpen((open) => !open)}
+                  aria-expanded={completedMenuOpen}
+                >
+                  <div>
+                    <h2 className="text-lg font-semibold">Completed Appointments</h2>
+                    <p className="text-xs text-muted-foreground">
+                      {completed.length} completed appointment{completed.length === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                  <ChevronDown
+                    className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${completedMenuOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {completedMenuOpen && (
+                  <ul className="space-y-2 border-t p-3">
+                    {completed.map((item) => (
+                      <li key={item.reservation.reservation_id} className="rounded-lg border p-3 bg-background">
+                        <div className="flex justify-between gap-3">
+                          <div className="text-left">
+                            <button
+                              type="button"
+                              className="text-left font-medium transition-colors hover:text-primary hover:underline"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openProviderProfile(item.opening)
+                              }}
+                            >
+                              {getProviderName(item.opening)}
+                            </button>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {formatTime(item.opening.starts_at)}
+                            </p>
+                            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+                              Completed
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Appointment type: {getAppointmentType(item.opening)}
+                            </p>
+                          </div>
+                          {!reviewedReservationIds.has(item.reservation.reservation_id) ? (
+                            <button
+                              className="flex items-center gap-1 rounded bg-amber-100 px-2 py-1 h-fit text-xs font-medium text-amber-900 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-100 dark:hover:bg-amber-500/30"
+                              onClick={() => setReviewTarget(item)}
+                            >
+                              <Star className="h-3 w-3" />
+                              Review
+                            </button>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                              Reviewed
+                            </span>
+                          )}
                         </div>
-                        {!reviewedReservationIds.has(item.reservation.reservation_id) ? (
-                          <button
-                            className="flex items-center gap-1 rounded bg-amber-100 px-2 py-1 h-fit text-xs font-medium text-amber-900 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-100 dark:hover:bg-amber-500/30"
-                            onClick={() => setReviewTarget(item)}
-                          >
-                            <Star className="h-3 w-3" />
-                            Review
-                          </button>
-                        ) : (
-                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                            Reviewed
-                          </span>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
           </ResizablePanel>
         </ResizablePanelGroup>
@@ -374,7 +469,7 @@ export function ClientHomePage() {
       {reviewTarget && (
         <ReviewModal
           reservationId={reviewTarget.reservation.reservation_id}
-          appointmentTitle={reviewTarget.opening.title}
+          companyName={getProviderName(reviewTarget.opening)}
           onClose={() => setReviewTarget(null)}
           onReviewSubmitted={() => loadData()}
         />

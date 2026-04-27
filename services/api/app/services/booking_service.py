@@ -251,10 +251,11 @@ def complete_reservation(db: Session, account: Account, reservation_id: int) -> 
 
     opening = db.get(Opening, reservation.opening_id)
     business = _get_vendor_business(db, account)
+    is_client = reservation.client_account_id == account.account_id
     is_vendor = business is not None and opening is not None and opening.business_id == business.business_id
 
-    if not is_vendor:
-        raise HTTPException(status_code=403, detail="Only the vendor can complete appointments")
+    if not is_client and not is_vendor:
+        raise HTTPException(status_code=403, detail="Only the client or vendor can complete appointments")
 
     if reservation.status != "CONFIRMED":
         raise HTTPException(status_code=409, detail="Only confirmed reservations can be completed")

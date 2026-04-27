@@ -2,7 +2,7 @@ import { useState } from "react"
 import { createReview } from "@/lib/queries/reviews"
 import { Star, X } from "lucide-react"
 
-export function ReviewModal({ reservationId, appointmentTitle, onClose, onReviewSubmitted }) {
+export function ReviewModal({ reservationId, companyName, onClose, onReviewSubmitted }) {
   const [rating, setRating] = useState(0)
   const [hoverRating, setHoverRating] = useState(0)
   const [comment, setComment] = useState("")
@@ -39,7 +39,7 @@ export function ReviewModal({ reservationId, appointmentTitle, onClose, onReview
 
         <h3 className="text-lg font-semibold">Leave a Review</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          How was your experience with {appointmentTitle || "this appointment"}?
+          How was your experience with {companyName || "this provider"}?
         </p>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">

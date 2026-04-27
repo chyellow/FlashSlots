@@ -4,17 +4,17 @@ import { getBusinessById } from "@/lib/queries/business"
 import { getBusinessRating, getBusinessReviews, getClientStats } from "@/lib/queries/reviews"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { MapPin, Phone, Mail, Clock, Star, XCircle, X } from "lucide-react"
+import { MapPin, Phone, Mail, Clock, Star, XCircle, X, ChevronDown } from "lucide-react"
 
 
 export function ProfileModal({ accountId, businessId, onClose }) {
   const [profile, setProfile] = useState(null)
-  const [business, setBusiness] = useState(null)
   const [rating, setRating] = useState(null)
   const [reviews, setReviews] = useState([])
   const [clientStats, setClientStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [reviewsOpen, setReviewsOpen] = useState(false)
 
   useEffect(() => {
     if (!accountId) return
@@ -22,10 +22,10 @@ export function ProfileModal({ accountId, businessId, onClose }) {
     setLoading(true)
     setError(null)
     setProfile(null)
-    setBusiness(null)
     setRating(null)
     setReviews([])
     setClientStats(null)
+    setReviewsOpen(false)
 
     const fetchData = async () => {
       try {
@@ -34,7 +34,6 @@ export function ProfileModal({ accountId, businessId, onClose }) {
           businessId ? getBusinessById(businessId) : Promise.resolve(null),
         ])
         setProfile(profileData)
-        setBusiness(businessData)
 
         if (businessData) {
           try {
@@ -176,44 +175,62 @@ export function ProfileModal({ accountId, businessId, onClose }) {
             {reviews.length > 0 && (
               <>
                 <Separator />
-                <div className="px-10 py-6 space-y-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Star className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                      Reviews
-                    </h3>
-                  </div>
-                  <div className="space-y-3">
-                    {reviews.map((review) => (
-                      <div key={review.review_id} className="rounded-lg border border-border p-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{review.reviewer_name || "Client"}</span>
-                          <div className="flex items-center gap-1">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star
-                                key={star}
-                                className={`h-3 w-3 ${
-                                  star <= review.rating
-                                    ? "fill-amber-400 text-amber-400"
-                                    : "text-muted-foreground/30"
-                                }`}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                        {review.comment && (
-                          <p className="mt-1 text-sm text-muted-foreground">{review.comment}</p>
-                        )}
-                        <p className="mt-1 text-xs text-muted-foreground/60">
-                          {new Date(review.created_at).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
+                <div className="px-10 py-6">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/60 px-4 py-3 text-left"
+                    onClick={() => setReviewsOpen((open) => !open)}
+                    aria-expanded={reviewsOpen}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Star className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                          Reviews
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          {reviews.length} review{reviews.length === 1 ? "" : "s"}
                         </p>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${reviewsOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
+
+                  {reviewsOpen && (
+                    <div className="mt-4 space-y-3">
+                      {reviews.map((review) => (
+                        <div key={review.review_id} className="rounded-lg border border-border p-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">{review.reviewer_name || "Client"}</span>
+                            <div className="flex items-center gap-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  className={`h-3 w-3 ${
+                                    star <= review.rating
+                                      ? "fill-amber-400 text-amber-400"
+                                      : "text-muted-foreground/30"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          {review.comment && (
+                            <p className="mt-1 text-sm text-muted-foreground">{review.comment}</p>
+                          )}
+                          <p className="mt-1 text-xs text-muted-foreground/60">
+                            {new Date(review.created_at).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -224,7 +241,9 @@ export function ProfileModal({ accountId, businessId, onClose }) {
   )
 }
 
-function ProfileField({ icon: Icon, label, value, multiline = false }) {
+function ProfileField({ icon, label, value, multiline = false }) {
+  const Icon = icon
+
   if (!value) {
     return (
       <div className="flex items-start gap-3">

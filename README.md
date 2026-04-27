@@ -22,7 +22,7 @@ frontend infrastructure and project setup.
 
 there is a makefile, run the command in the root directory, have docker launched on your desktop
 ```bash
-make
+make dev
 ```
 
 ### Prerequisites

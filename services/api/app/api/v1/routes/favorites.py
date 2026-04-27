@@ -20,6 +20,6 @@ def favorite_business(business_id: int, db : Session = Depends(get_db),
     return add_favorite(db, business_id, account)
 
 @router.delete("/{business_id}")
-def unfavorite_buisness(business_id: int, db : Session = Depends(get_db),
+def unfavorite_business(business_id: int, db : Session = Depends(get_db),
                         account: Account = Depends(get_current_account)):
     return remove_favorite(db, account, business_id)

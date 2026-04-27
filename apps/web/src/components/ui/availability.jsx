@@ -1,13 +1,12 @@
 import * as React from "react";
 import { Clock, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+
 import {
   ContextMenu,
   ContextMenuTrigger,
   ContextMenuContent,
   ContextMenuItem,
-  ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import {
   DndContext,
@@ -26,6 +25,13 @@ import { nanoid } from "nanoid";
 const timeToMinutes = (time) => {
   const [h, m] = time.split(":").map(Number);
   return h * 60 + m;
+};
+
+const toDateKey = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 };
 
 const minutesToTime = (minutes) => {
@@ -66,9 +72,9 @@ const mergeAdjacentSpans = (spans) => {
 
   const byDay = new Map();
   spans.forEach((span) => {
-    const daySpans = byDay.get(span.week_day) || [];
+    const daySpans = byDay.get(span.date) || [];
     daySpans.push(span);
-    byDay.set(span.week_day, daySpans);
+    byDay.set(span.date, daySpans);
   });
 
   const merged = [];
@@ -111,7 +117,7 @@ function useCalendarCreation({
   disabledEvents = [],
   lockedEvents = [],
   onCreate,
-  colIndex,
+  date,
   isDayDisabled = false,
 }) {
   const [isCreating, setIsCreating] = React.useState(false);
@@ -131,8 +137,10 @@ function useCalendarCreation({
   const startOffset = startTime * 60;
 
   const sortedConstraints = React.useMemo(() => {
-    return [...events, ...disabledEvents, ...lockedEvents].sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
-  }, [events, disabledEvents, lockedEvents])
+    return [...events, ...disabledEvents, ...lockedEvents].sort(
+      (a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time),
+    );
+  }, [events, disabledEvents, lockedEvents]);
 
   const getMinutesFromY = (y) => {
     if (!containerRef.current) return 0;
@@ -196,11 +204,11 @@ function useCalendarCreation({
       finalStart = Math.max(minStartMins, finalStart);
       finalEnd = Math.min(maxEndMins, finalEnd);
 
-  if (!didDrag) {
-    finalEnd = Math.min(finalStart + 60, maxEndMins);
-  } else if (finalEnd - finalStart < timeIncrements) {
-    finalEnd = Math.min(finalStart + timeIncrements, maxEndMins);
-  }
+      if (!didDrag) {
+        finalEnd = Math.min(finalStart + 60, maxEndMins);
+      } else if (finalEnd - finalStart < timeIncrements) {
+        finalEnd = Math.min(finalStart + timeIncrements, maxEndMins);
+      }
 
       if (finalEnd > finalStart) {
         setPendingConfirmation({ start: finalStart, end: finalEnd });
@@ -239,7 +247,7 @@ function useCalendarCreation({
 
     if (pendingConfirmation) {
       onCreate(
-        colIndex,
+        date,
         pendingConfirmation.start,
         pendingConfirmation.end,
         modalData,
@@ -316,12 +324,35 @@ export function Availability({
 
   const mainContainerRef = React.useRef(null);
 
+  const weekDates = React.useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      return d;
+    });
+  }, []);
+
   const renderedDays = React.useMemo(() => {
     if (showAllDays) {
-      return [0, 1, 2, 3, 4, 5, 6];
+      return weekDates.map((d) => d.getDay());
     }
     return days;
-  }, [days, showAllDays]);
+  }, [days, showAllDays, weekDates]);
+
+  const monthLabel = React.useMemo(() => {
+    const fmt = new Intl.DateTimeFormat("en-US", { month: "long" });
+    const first = fmt.format(weekDates[0]);
+    const last = fmt.format(weekDates[6]);
+    return first === last ? first : `${first} – ${last}`;
+  }, [weekDates]);
+
+  const dateByDayIndex = React.useMemo(() => {
+  const map = new Map();
+  weekDates.forEach((d) => map.set(d.getDay(), d));
+  return map;
+}, [weekDates]);
 
   React.useEffect(() => {
     setInternalValue(value);
@@ -344,10 +375,10 @@ export function Availability({
     updateValue(newValue, isComplete);
   };
 
-  const handleCreate = (dayIndex, startMinutes, endMinutes, modalData = {}) => {
+  const handleCreate = (date, startMinutes, endMinutes, modalData = {}) => {
     const newSpan = {
       id: generateId(),
-      week_day: dayIndex,
+      date: toDateKey(date),
       start_time: minutesToTime(startMinutes),
       end_time: minutesToTime(endMinutes),
       active: true,
@@ -367,14 +398,14 @@ export function Availability({
     );
   };
 
-  const handleMove = (id, newStart, newEnd, newDayIndex) => {
+  const handleMove = (id, newStart, newEnd, newDate) => {
     const newValue = internalValue.map((span) => {
       if (span.id === id) {
         return {
           ...span,
           start_time: newStart,
           end_time: newEnd,
-          week_day: newDayIndex,
+          date: toDateKey(newDate),
         };
       }
       return span;
@@ -406,8 +437,11 @@ export function Availability({
       return { isValid: false, newStart, duration };
     }
 
+    const targetDate = dateByDayIndex.get(targetDayIndex);
+    const targetDateKey = targetDate ? toDateKey(targetDate) : null;
+
     const dayEvents = internalValue.filter(
-      (e) => e.week_day === targetDayIndex && e.id !== span.id,
+      (e) => e.date === targetDateKey && e.id !== span.id,
     );
     const hasEventOverlap = dayEvents.some((e) => {
       const eStart = timeToMinutes(e.start_time);
@@ -522,11 +556,14 @@ export function Availability({
     if (!isValid) return;
 
     const newEndVal = newStart + duration;
+    const targetDate = dateByDayIndex.get(targetDayIndex);
+    if (!targetDate) return;
+
     handleMove(
       span.id,
       minutesToTime(newStart),
       minutesToTime(newEndVal),
-      targetDayIndex,
+      targetDate,
     );
   };
 
@@ -562,22 +599,42 @@ export function Availability({
             className,
           )}
         >
+          {/* Month label */}
+          <div className="flex w-full border-b bg-muted/40 px-3 py-2 text-sm font-semibold">
+            {monthLabel}
+          </div>
+
           {/* Header */}
           <div className="flex w-full border-b bg-muted/40">
             <div className="w-14 flex-shrink-0 border-r p-2 text-xs font-medium text-muted-foreground" />
             <div className="flex flex-1">
-              {renderedDays.map((dayIndex) => {
+              {renderedDays.map((dayIndex, i) => {
                 const isActive = days.includes(dayIndex);
+                const date = weekDates[i];
+                const isToday = i === 0;
                 return (
                   <div
                     key={dayIndex}
                     className={cn(
-                      "flex-1 border-r px-1 py-3 text-center text-sm font-medium last:border-r-0",
+                      "flex-1 border-r px-1 py-2 text-center last:border-r-0",
                       !isActive && "bg-muted/30 text-muted-foreground",
                     )}
                   >
-                    <span className="hidden sm:inline">{DAYS[dayIndex]}</span>
-                    <span className="sm:hidden">{SHORT_DAYS[dayIndex]}</span>
+                    <div className="flex justify-center leading-none">
+                      <span
+                        className={cn(
+                          "text-lg font-semibold",
+                          isToday &&
+                            "flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground",
+                        )}
+                      >
+                        {date.getDate()}
+                      </span>
+                    </div>
+                    <div className="text-xs font-medium text-muted-foreground mt-1">
+                      <span className="hidden sm:inline">{DAYS[dayIndex]}</span>
+                      <span className="sm:hidden">{SHORT_DAYS[dayIndex]}</span>
+                    </div>
                   </div>
                 );
               })}
@@ -619,18 +676,24 @@ export function Availability({
 
               {renderedDays.map((dayIndex, i) => {
                 const isActive = days.includes(dayIndex);
+                const date = weekDates[i];
+                const dateKey = toDateKey(date);
 
                 return (
                   <DayColumn
                     key={dayIndex}
                     dayIndex={dayIndex}
-                    colIndex={i}
+                    date={date}
                     startTime={startTime}
                     endTime={endTime}
                     timeIncrements={timeIncrements}
-                    events={internalValue.filter(e => e.week_day === dayIndex)}
-                    lockedEvents={lockedEvents.filter(e => e.week_day === dayIndex)}
-                    disabledEvents={disabled.filter(e => e.week_day === dayIndex)}
+                    events={internalValue.filter((e) => e.date === dateKey)}
+                    lockedEvents={lockedEvents.filter(
+                      (e) => e.date === dateKey,
+                    )}
+                    disabledEvents={disabled.filter(
+                      (e) => e.week_day === dayIndex,
+                    )}
                     onCreate={handleCreate}
                     onLockedEventSelect={onLockedEventSelect}
                     onResize={handleResize}
@@ -660,7 +723,7 @@ export function Availability({
 
 function DayColumn({
   dayIndex,
-  colIndex,
+  date,
   startTime,
   endTime,
   timeIncrements,
@@ -689,19 +752,34 @@ function DayColumn({
     setNodeRef(node);
   };
 
-  const { isCreating, creationStart, currentMouseY, pendingConfirmation, showModal, modalData, setModalData, totalMinutes, startOffset, sortedConstraints, handlePointerDown, confirmCreation, cancelCreation, handleModalSubmit, handleModalCancel } =
-    useCalendarCreation({
-      containerRef,
-      timeIncrements,
-      startTime,
-      endTime,
-      events,
-      lockedEvents,
-      disabledEvents,
-      onCreate,
-      colIndex,
-      isDayDisabled,
-    })
+  const {
+    isCreating,
+    creationStart,
+    currentMouseY,
+    pendingConfirmation,
+    showModal,
+    modalData,
+    setModalData,
+    totalMinutes,
+    startOffset,
+    sortedConstraints,
+    handlePointerDown,
+    confirmCreation,
+    cancelCreation,
+    handleModalSubmit,
+    handleModalCancel,
+  } = useCalendarCreation({
+    containerRef,
+    timeIncrements,
+    startTime,
+    endTime,
+    events,
+    lockedEvents,
+    disabledEvents,
+    onCreate,
+    date,
+    isDayDisabled,
+  });
 
   const modalFieldClassName =
     "w-full rounded-md border border-input bg-background px-3 py-2 font-sans text-foreground shadow-xs focus:outline-none focus:ring-2 focus:ring-primary";
@@ -832,7 +910,8 @@ function DayColumn({
             containerRef={containerRef}
             isDragging={isDragging}
             isLocked={isDayDisabled}
-            slotClassName={event.className || slotClassName} />
+            slotClassName={event.className || slotClassName}
+          />
         );
       })}
       {lockedEvents.map((event) => (
@@ -851,7 +930,8 @@ function DayColumn({
           isDragging={false}
           isLocked={true}
           onSettingsClick={onLockedEventSelect}
-          slotClassName={event.className || slotClassName} />
+          slotClassName={event.className || slotClassName}
+        />
       ))}
       {isCreating && creationStart !== null && currentMouseY !== null && (
         <div
@@ -931,8 +1011,7 @@ function DayColumn({
                   }
                   className={modalFieldClassName}
                   required
-                >
-                </input>
+                ></input>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">
@@ -1047,7 +1126,7 @@ function DraggableTimeSpan({
   isDragging,
   isLocked = false,
   onSettingsClick,
-  slotClassName = "bg-muted"
+  slotClassName = "bg-muted",
 }) {
   const context = React.useContext(AvailabilityDragContext);
   const { attributes, listeners, setNodeRef } = useDraggable({
@@ -1066,7 +1145,7 @@ function DraggableTimeSpan({
     top: `${((startMinutes - startOffset) / totalMinutes) * 100}%`,
     height: `${(durationMinutes / totalMinutes) * 100}%`,
     opacity: isDragging ? 0 : isLocked ? 0.95 : 1,
-  }
+  };
 
   const handleResizeStart = (e, edge) => {
     if (isLocked) return;
@@ -1183,8 +1262,8 @@ function DraggableTimeSpan({
           aria-label={`Edit ${span.name || "appointment"}`}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
-            e.stopPropagation()
-            onSettingsClick(span)
+            e.stopPropagation();
+            onSettingsClick(span);
           }}
           className="absolute right-1.5 top-1.5 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition-colors hover:bg-background hover:text-foreground"
         >
@@ -1212,8 +1291,9 @@ function DraggableTimeSpan({
         "absolute left-1 right-1 rounded border p-3 shadow-sm text-xs group overflow-hidden touch-none",
         slotClassName,
         isDragging && "opacity-0",
-        isLocked && "border-dashed cursor-default"
-      )}>
+        isLocked && "border-dashed cursor-default",
+      )}
+    >
       {content}
     </div>
   );
@@ -1270,7 +1350,9 @@ function TimeSpanCard({ span, useAmPm, duration, isLocked = false }) {
   return (
     <div className="h-full flex flex-col relative items-between text-foreground timespan-inner-area pointer-events-none">
       <div className="flex flex-col gap-0.5 text-inherit">
-        <p className="font-semibold leading-none">{formatDisplayTime(span.start_time, useAmPm)}</p>
+        <p className="font-semibold leading-none">
+          {formatDisplayTime(span.start_time, useAmPm)}
+        </p>
         {/* Show primary label if it exists */}
         {span.name && (
           <p className="text-xs font-medium truncate">{span.name}</p>
@@ -1289,7 +1371,9 @@ function TimeSpanCard({ span, useAmPm, duration, isLocked = false }) {
         )}
       </div>
       <div className="flex flex-col gap-1 mt-auto text-inherit">
-        <p className="font-semibold leading-none !text-inherit">{formatDisplayTime(span.end_time, useAmPm)}</p>
+        <p className="font-semibold leading-none !text-inherit">
+          {formatDisplayTime(span.end_time, useAmPm)}
+        </p>
       </div>
     </div>
   );

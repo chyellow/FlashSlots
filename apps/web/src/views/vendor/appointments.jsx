@@ -26,13 +26,20 @@ function toLocalTimeString(dateString) {
   return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`
 }
 
+function toLocalDateKey(dateString) {
+  const d = new Date(dateString)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
 function openingToCalendarEvent(opening) {
-  const startsAt = new Date(opening.starts_at)
   const isClaimed = opening.status === "BOOKED"
 
   return {
     id: `opening-${opening.opening_id}`,
-    week_day: startsAt.getDay(),
+    date: toLocalDateKey(opening.starts_at),       
     start_time: toLocalTimeString(opening.starts_at),
     end_time: toLocalTimeString(opening.ends_at),
     name: opening.staff_name || "Unassigned",
@@ -231,22 +238,38 @@ export function VendorAppointmentsPage() {
   const pastOpenings = openings.filter(o => o.status === 'EXPIRED' || o.status === 'CANCELLED')
 
   const calendarEvents = useMemo(() => {
-    const now = new Date()
-    const calendarWindowEnd = new Date(now)
-    calendarWindowEnd.setDate(calendarWindowEnd.getDate() + 7)
+  const now = new Date()
 
-    return openings
-      .filter((opening) => {
-        if (!["OPEN", "ON_HOLD", "BOOKED"].includes(opening.status)) {
-          return false
-        }
+  const windowStart = new Date(now)
+  windowStart.setHours(0, 0, 0, 0)
 
-        const startsAt = new Date(opening.starts_at)
-        const endsAt = new Date(opening.ends_at)
-        return endsAt > now && startsAt < calendarWindowEnd
-      })
-      .map(openingToCalendarEvent)
-  }, [openings])
+  const windowEnd = new Date(windowStart)
+  windowEnd.setDate(windowEnd.getDate() + 7)
+
+  return openings
+    .filter((opening) => {
+      if (!["OPEN", "ON_HOLD", "BOOKED"].includes(opening.status)) {
+        return false
+      }
+
+      const startsAt = new Date(opening.starts_at)
+      const endsAt = new Date(opening.ends_at)
+
+      // Must start within the visible window
+      if (startsAt < windowStart || startsAt >= windowEnd) {
+        return false
+      }
+
+      // Hide anything already finished
+      if (endsAt <= now) {
+        return false
+      }
+
+      return true
+    })
+    .map(openingToCalendarEvent)
+}, [openings])
+
   const editDurationOptions = useMemo(() => {
     if (!editModalData.duration || EXPIRATION_OPTIONS.includes(editModalData.duration)) {
       return EXPIRATION_OPTIONS
@@ -297,7 +320,7 @@ export function VendorAppointmentsPage() {
             </p>
           )}
         </div>
-
+         
         <Availability
           value={draftSlots}
           onValueChange={setDraftSlots}

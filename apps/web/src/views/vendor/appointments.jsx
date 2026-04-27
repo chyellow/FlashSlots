@@ -81,6 +81,8 @@ export function VendorAppointmentsPage() {
   })
   const [savingEdit, setSavingEdit] = useState(false)
   const [cancelTarget, setCancelTarget] = useState(null)
+  const [completingId, setCompletingId] = useState(null)
+  const [cancellingConfirmed, setCancellingConfirmed] = useState(false)
   const [viewProfileTarget, setViewProfileTarget] = useState(null)
 
   const loadOpenings = async () => {
@@ -186,7 +188,8 @@ export function VendorAppointmentsPage() {
   }
 
   const confirmCancelAppointment = async () => {
-    if (!cancelTarget) return
+    if (!cancelTarget || cancellingConfirmed) return
+    setCancellingConfirmed(true)
 
     try {
       if (cancelTarget.status === "BOOKED") {
@@ -207,21 +210,27 @@ export function VendorAppointmentsPage() {
       loadOpenings()
     } catch (err) {
       alert(err.message || "Failed to cancel appointment.")
+    } finally {
+      setCancellingConfirmed(false)
     }
   }
 
   const handleComplete = async (opening) => {
+    if (completingId) return
     const res = reservations.find(r => r.opening_id === opening.opening_id && r.status === "CONFIRMED")
     if (!res) {
       alert("Could not find the reservation for this appointment.")
       return
     }
 
+    setCompletingId(opening.opening_id)
     try {
       await completeReservation(res.reservation_id)
       loadOpenings()
     } catch (err) {
       alert(err.message || "Failed to mark as complete.")
+    } finally {
+      setCompletingId(null)
     }
   }
 
@@ -345,10 +354,11 @@ export function VendorAppointmentsPage() {
                   </div>
                   <button
                     onClick={() => handleComplete(op)}
-                    className="mt-3 flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 transition-colors"
+                    disabled={completingId === op.opening_id}
+                    className="mt-3 flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
                   >
                     <CheckCircle className="h-3.5 w-3.5" />
-                    Mark Complete
+                    {completingId === op.opening_id ? "Completing..." : "Mark Complete"}
                   </button>
                 </div>
               ))}
@@ -551,16 +561,18 @@ export function VendorAppointmentsPage() {
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
-                className="rounded px-3 py-1 border border-border text-sm text-muted-foreground hover:bg-muted/20"
+                className="rounded px-3 py-1 border border-border text-sm text-muted-foreground hover:bg-muted/20 disabled:opacity-50"
                 onClick={dismissCancel}
+                disabled={cancellingConfirmed}
               >
                 Keep
               </button>
               <button
-                className="rounded px-3 py-1 bg-red-600 text-white hover:bg-red-700"
+                className="rounded px-3 py-1 bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                 onClick={confirmCancelAppointment}
+                disabled={cancellingConfirmed}
               >
-                Cancel Appointment
+                {cancellingConfirmed ? "Cancelling..." : "Cancel Appointment"}
               </button>
             </div>
           </div>

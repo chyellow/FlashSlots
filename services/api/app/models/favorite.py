@@ -5,12 +5,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 
+
 class Favorite(Base):
     __tablename__ = 'favorites'
 
-    favorite_id = Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    favorite_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
 
-    client_account_id = Mapped[int] = mapped_column(BigInteger, ForeignKey("accounts.account_id", ondelete="CASCADE"), nullable=False,)
+    client_account_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("accounts.account_id", ondelete="CASCADE"), nullable=False,)
 
     business_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("businesses.business_id", ondelete="CASCADE"), nullable=False,)
 

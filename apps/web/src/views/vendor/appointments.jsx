@@ -225,10 +225,6 @@ export function VendorAppointmentsPage() {
     }
   }
 
-  const getReservationForOpening = (openingId) => {
-    return reservations.find(r => r.opening_id === openingId)
-  }
-
   const activeOpenings = openings.filter(o => o.status === 'OPEN' || o.status === 'ON_HOLD')
   const completedOpenings = openings.filter(o => o.status === 'COMPLETED')
   const bookedOpenings = openings.filter(o => o.status === 'BOOKED')
@@ -284,15 +280,22 @@ export function VendorAppointmentsPage() {
       </div>
 
       <div className="rounded-lg border bg-card p-4 shadow-xs">
-        <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
-          <div className="inline-flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full bg-amber-300 dark:bg-amber-400" />
-            <span className="text-muted-foreground">Unclaimed</span>
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3 text-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex items-center gap-2">
+              <span className="h-3 w-3 rounded-full bg-amber-300 dark:bg-amber-400" />
+              <span className="text-muted-foreground">Unclaimed</span>
+            </div>
+            <div className="inline-flex items-center gap-2">
+              <span className="h-3 w-3 rounded-full bg-emerald-400 dark:bg-emerald-400" />
+              <span className="text-muted-foreground">Claimed</span>
+            </div>
           </div>
-          <div className="inline-flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full bg-emerald-400 dark:bg-emerald-400" />
-            <span className="text-muted-foreground">Claimed</span>
-          </div>
+          {draftSlots.length > 0 && (
+            <p className="max-w-xs text-right text-xs font-medium text-amber-700 dark:text-amber-300">
+              You have {draftSlots.length} unpublished slot{draftSlots.length === 1 ? "" : "s"}. Hit Publish to make {draftSlots.length === 1 ? "it" : "them"} visible to clients.
+            </p>
+          )}
         </div>
 
         <Availability
@@ -395,7 +398,6 @@ export function VendorAppointmentsPage() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {completedOpenings.map(op => {
-                const res = getReservationForOpening(op.opening_id)
                 return (
                   <div key={op.opening_id} className="rounded-lg border bg-card p-4 shadow-sm">
                     <div className="flex items-start justify-between">

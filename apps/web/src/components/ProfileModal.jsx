@@ -2,12 +2,13 @@ import { useEffect, useState } from "react"
 import { getProfileByAccountId } from "@/lib/queries/profile"
 import { getBusinessById } from "@/lib/queries/business"
 import { getBusinessRating, getBusinessReviews, getClientStats } from "@/lib/queries/reviews"
+import { getMyFavorites, addFavorite, removeFavorite } from "@/lib/queries/favorites"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { MapPin, Phone, Mail, Clock, Star, XCircle, X, ChevronDown } from "lucide-react"
+import { MapPin, Phone, Mail, Clock, Star, XCircle, X, ChevronDown, Heart } from "lucide-react"
 
 
-export function ProfileModal({ accountId, businessId, onClose }) {
+export function ProfileModal({ accountId, businessId, onClose, onFavoriteChange }) {
   const [profile, setProfile] = useState(null)
   const [rating, setRating] = useState(null)
   const [reviews, setReviews] = useState([])
@@ -15,6 +16,8 @@ export function ProfileModal({ accountId, businessId, onClose }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [reviewsOpen, setReviewsOpen] = useState(false)
+  const [isFavorited, setIsFavorited] = useState(false)
+  const [togglingFav, setTogglingFav] = useState(false)
 
   useEffect(() => {
     if (!accountId) return
@@ -26,6 +29,7 @@ export function ProfileModal({ accountId, businessId, onClose }) {
     setReviews([])
     setClientStats(null)
     setReviewsOpen(false)
+    setIsFavorited(false)
 
     const fetchData = async () => {
       try {
@@ -46,6 +50,12 @@ export function ProfileModal({ accountId, businessId, onClose }) {
           } catch {
             // reviews not available yet
           }
+          try {
+            const favs = await getMyFavorites()
+            setIsFavorited(favs.some((f) => f.business_id === businessData.business_id))
+          } catch {
+            // favorites not available
+          }
         } else {
           try {
             const statsData = await getClientStats(accountId)
@@ -64,6 +74,25 @@ export function ProfileModal({ accountId, businessId, onClose }) {
     fetchData()
   }, [accountId, businessId])
 
+  const toggleFavorite = async () => {
+    if (!businessId || togglingFav) return
+    setTogglingFav(true)
+    try {
+      if (isFavorited) {
+        await removeFavorite(businessId)
+        setIsFavorited(false)
+      } else {
+        await addFavorite(businessId)
+        setIsFavorited(true)
+      }
+      onFavoriteChange?.()
+    } catch (err) {
+      console.error("Failed to toggle favorite:", err)
+    } finally {
+      setTogglingFav(false)
+    }
+  }
+
   if (!accountId) return null
 
   const initials = profile?.display_name
@@ -74,6 +103,21 @@ export function ProfileModal({ accountId, businessId, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative z-10 w-[min(90vw,440px)] max-h-[85vh] overflow-y-auto rounded-xl border border-border bg-background shadow-xl">
+        {businessId && !loading && !error && (
+          <button
+            onClick={toggleFavorite}
+            disabled={togglingFav}
+            className="absolute left-3 top-3 z-10 rounded-full p-1.5 transition-colors hover:bg-muted disabled:opacity-50"
+          >
+            <Heart
+              className={`h-5 w-5 transition-colors ${
+                isFavorited
+                  ? "fill-red-500 text-red-500"
+                  : "text-muted-foreground hover:text-red-400"
+              }`}
+            />
+          </button>
+        )}
         <button
           onClick={onClose}
           className="absolute right-3 top-3 z-10 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"

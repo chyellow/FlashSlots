@@ -17,7 +17,7 @@ def my_favorites(db: Session = Depends(get_db),
 @router.post("/{business_id}")
 def favorite_business(business_id: int, db : Session = Depends(get_db),
                       account: Account = Depends(get_current_account)):
-    return add_favorite(db, business_id, account)
+    return add_favorite(db, account, business_id)
 
 @router.delete("/{business_id}")
 def unfavorite_business(business_id: int, db : Session = Depends(get_db),

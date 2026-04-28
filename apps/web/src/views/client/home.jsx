@@ -5,9 +5,10 @@ import { getOpenings, getOpening } from "@/lib/queries/openings"
 import { getBusinessById } from "@/lib/queries/business"
 import { getMyReservations, holdReservation, confirmReservation, cancelReservation } from "@/lib/queries/reservations"
 import { getMyReviews } from "@/lib/queries/reviews"
+import { getMyFavorites } from "@/lib/queries/favorites"
 import { ProfileModal } from "@/components/ProfileModal"
 import { ReviewModal } from "@/components/ReviewModal"
-import { ChevronDown, Star } from "lucide-react"
+import { ChevronDown, Star, Heart } from "lucide-react"
 
 function formatTimer(seconds) {
   const min = String(Math.floor(seconds / 60)).padStart(2, "0")
@@ -40,6 +41,8 @@ export function ClientHomePage() {
   const [viewProfileTarget, setViewProfileTarget] = useState(null)
   const [reviewTarget, setReviewTarget] = useState(null)
   const [reviewedReservationIds, setReviewedReservationIds] = useState(new Set())
+  const [favorites, setFavorites] = useState([])
+  const [favoriteBusinesses, setFavoriteBusinesses] = useState({})
 
   const [profile, setProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(true)
@@ -84,6 +87,24 @@ export function ClientHomePage() {
         setReviewedReservationIds(new Set())
       }
 
+      let favs = []
+      try {
+        favs = await getMyFavorites()
+        setFavorites(favs)
+        const favResults = await Promise.allSettled(
+          favs.map((f) => getBusinessById(f.business_id))
+        )
+        const bizMap = {}
+        favResults.forEach((result, i) => {
+          if (result.status === "fulfilled" && result.value) {
+            bizMap[favs[i].business_id] = result.value
+          }
+        })
+        setFavoriteBusinesses(bizMap)
+      } catch {
+        setFavorites([])
+      }
+
       const confirmedRes = reses.filter(r => r.status === 'CONFIRMED')
       const confirmedWithOpenings = await Promise.all(
         confirmedRes.map(async (r) => {
@@ -101,10 +122,12 @@ export function ClientHomePage() {
         })
       )
 
+      const favBusinessPlaceholders = favs.map((f) => ({ business_id: f.business_id }))
       await loadBusinessNames([
         ...ops,
         ...confirmedWithOpenings.map((item) => item.opening),
         ...completedWithOpenings.map((item) => item.opening),
+        ...favBusinessPlaceholders,
       ])
 
       setAvailable(ops)
@@ -282,15 +305,6 @@ export function ClientHomePage() {
                         <p className="mt-1 text-xs text-muted-foreground">
                           Appointment type: {getAppointmentType(item)}
                         </p>
-                        <button
-                          className="mt-1 text-xs text-primary hover:underline"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            openProviderProfile(item)
-                          }}
-                        >
-                          View Provider
-                        </button>
                       </div>
                       <button
                         className="rounded bg-primary px-3 py-1 h-fit text-xs text-primary-foreground disabled:opacity-40"
@@ -396,15 +410,6 @@ export function ClientHomePage() {
                             <p className="mt-1 text-xs text-muted-foreground">
                               Appointment type: {getAppointmentType(item.opening)}
                             </p>
-                            <button
-                              className="mt-1 text-xs text-primary hover:underline"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                openProviderProfile(item.opening)
-                              }}
-                            >
-                              View Provider
-                            </button>
                           </div>
                           <div className="flex h-fit flex-col items-end gap-2">
                             {!reviewedReservationIds.has(item.reservation.reservation_id) ? (
@@ -432,6 +437,32 @@ export function ClientHomePage() {
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
+
+      {favorites.length > 0 && (
+        <div className="mt-4 rounded-lg border bg-card p-4 shadow-sm">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Heart className="h-4 w-4 text-red-500" />
+            Favorite Providers
+          </h2>
+          <div className="mt-3 flex flex-wrap gap-3">
+            {favorites.map((fav) => (
+              <button
+                key={fav.business_id}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
+                onClick={() => {
+                  const biz = favoriteBusinesses[fav.business_id]
+                  setViewProfileTarget({
+                    accountId: biz?.owner_account_id || null,
+                    businessId: fav.business_id,
+                  })
+                }}
+              >
+                {businessNamesById[fav.business_id] || "Provider"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {pending && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -463,6 +494,7 @@ export function ClientHomePage() {
         accountId={viewProfileTarget?.accountId}
         businessId={viewProfileTarget?.businessId}
         onClose={() => setViewProfileTarget(null)}
+        onFavoriteChange={() => loadData()}
       />
 
       {reviewTarget && (

@@ -36,6 +36,7 @@ export function ClientHomePage() {
   const [countdown, setCountdown] = useState(0)
   const [cancelTarget, setCancelTarget] = useState(null)
   const [completedMenuOpen, setCompletedMenuOpen] = useState(false)
+  const [selecting, setSelecting] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [viewProfileTarget, setViewProfileTarget] = useState(null)
@@ -48,7 +49,7 @@ export function ClientHomePage() {
   const [profileLoading, setProfileLoading] = useState(true)
   const [dataLoading, setDataLoading] = useState(true)
 
-  const canSelect = pending === null && cancelTarget === null
+  const canSelect = pending === null && cancelTarget === null && !selecting
 
   const loadBusinessNames = async (openings) => {
     const businessIds = [...new Set(openings.map((opening) => opening.business_id).filter(Boolean))]
@@ -186,6 +187,7 @@ export function ClientHomePage() {
 
   const selectAppointment = async (opening) => {
     if (!canSelect) return
+    setSelecting(true)
     try {
       const reservation = await holdReservation(opening.opening_id)
       const expiresAt = new Date(reservation.hold_expires_at).getTime()
@@ -195,6 +197,8 @@ export function ClientHomePage() {
       setAvailable((old) => old.filter((a) => a.opening_id !== opening.opening_id))
     } catch (err) {
       alert(err.message || "Failed to place a hold on this appointment.")
+    } finally {
+      setSelecting(false)
     }
   }
 

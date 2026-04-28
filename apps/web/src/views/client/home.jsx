@@ -282,6 +282,15 @@ export function ClientHomePage() {
                         <p className="mt-1 text-xs text-muted-foreground">
                           Appointment type: {getAppointmentType(item)}
                         </p>
+                        <button
+                          className="mt-1 text-xs text-primary hover:underline"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openProviderProfile(item)
+                          }}
+                        >
+                          View Provider
+                        </button>
                       </div>
                       <button
                         className="rounded bg-primary px-3 py-1 h-fit text-xs text-primary-foreground disabled:opacity-40"
@@ -387,21 +396,32 @@ export function ClientHomePage() {
                             <p className="mt-1 text-xs text-muted-foreground">
                               Appointment type: {getAppointmentType(item.opening)}
                             </p>
-                          </div>
-                          {!reviewedReservationIds.has(item.reservation.reservation_id) ? (
                             <button
-                              className="flex items-center gap-1 rounded bg-amber-100 px-2 py-1 h-fit text-xs font-medium text-amber-900 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-100 dark:hover:bg-amber-500/30"
-                              onClick={() => setReviewTarget(item)}
+                              className="mt-1 text-xs text-primary hover:underline"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openProviderProfile(item.opening)
+                              }}
                             >
-                              <Star className="h-3 w-3" />
-                              Review
+                              View Provider
                             </button>
-                          ) : (
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                              Reviewed
-                            </span>
-                          )}
+                          </div>
+                          <div className="flex h-fit flex-col items-end gap-2">
+                            {!reviewedReservationIds.has(item.reservation.reservation_id) ? (
+                              <button
+                                className="flex items-center gap-1 rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-100 dark:hover:bg-amber-500/30"
+                                onClick={() => setReviewTarget(item)}
+                              >
+                                <Star className="h-3 w-3" />
+                                Review
+                              </button>
+                            ) : (
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                                Reviewed
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </li>
                     ))}

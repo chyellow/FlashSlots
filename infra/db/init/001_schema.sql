@@ -219,7 +219,7 @@ CREATE TRIGGER trg_reviews_set_updated_at
 -- favorites
 -- =========================
 CREATE TABLE IF NOT EXISTS favorites (
-    favorite_id BIGSERIAL PRIAMRY KEY,
+    favorite_id BIGSERIAL PRIMARY KEY,
 
     client_account_id BIGINT NOT NULL
         REFERENCES accounts(account_id) ON DELETE CASCADE,

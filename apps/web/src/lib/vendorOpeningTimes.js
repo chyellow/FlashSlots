@@ -1,3 +1,5 @@
+import { serializeOpeningDiscount } from "@/lib/openingDiscount"
+
 /**
  * Maps an availability slot (date + HH:mm strings) to concrete instants for the API.
  * Handles slots that cross local midnight (e.g. 23:00–00:00).
@@ -75,6 +77,7 @@ export async function publishOpeningSlotsWithRollback(slots, postOpening, delete
       const created = await postOpening({
         title: slot.employee || "Available Appointment",
         staff_name: slot.name || null,
+        description: serializeOpeningDiscount(slot.discount),
         starts_at: starts_at.toISOString(),
         ends_at: ends_at.toISOString(),
         listed_price: price,

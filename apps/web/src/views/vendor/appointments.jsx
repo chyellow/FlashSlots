@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Availability } from "@/components/ui/availability"
 import { Button } from "@/components/ui/button"
 import { getOpenings, deleteOpening, patchOpening, postOpening } from "@/lib/queries/openings"
+import { parseOpeningDiscount, serializeOpeningDiscount } from "@/lib/openingDiscount"
 import { publishOpeningSlotsWithRollback } from "@/lib/vendorOpeningTimes"
 import { getBusinessReservations, cancelReservation } from "@/lib/queries/reservations"
 import { completeReservation } from "@/lib/queries/reviews"
@@ -44,10 +45,13 @@ function openingToCalendarEvent(opening) {
     end_time: toLocalTimeString(opening.ends_at),
     name: opening.staff_name || "Unassigned",
     employee: opening.title || "",
+    discount: parseOpeningDiscount(opening.description),
+    rawDescription: opening.description || null,
     openingId: opening.opening_id,
     status: opening.status,
     startsAt: opening.starts_at,
     endsAt: opening.ends_at,
+    price: opening.listed_price != null ? String(opening.listed_price) : "",
     listingExpiresAt: opening.listing_expires_at,
     className: isClaimed
       ? "bg-emerald-100 border-emerald-300 text-emerald-950 dark:bg-emerald-500/20 dark:border-emerald-400/50 dark:text-emerald-50"
@@ -85,6 +89,8 @@ export function VendorAppointmentsPage() {
     name: "",
     duration: "",
     employee: "",
+    discount: "",
+    price: "",
   })
   const [savingEdit, setSavingEdit] = useState(false)
   const [cancelTarget, setCancelTarget] = useState(null)
@@ -147,6 +153,8 @@ export function VendorAppointmentsPage() {
       name: event.name || "",
       duration: getExpirationMinutes(event),
       employee: event.employee || "",
+      discount: event.discount || "",
+      price: event.price || "",
     })
   }
 
@@ -156,19 +164,34 @@ export function VendorAppointmentsPage() {
       name: "",
       duration: "",
       employee: "",
+      discount: "",
+      price: "",
     })
   }
 
   const handleSaveAppointment = async () => {
-    if (!editTarget || !editModalData.name || !editModalData.duration) {
+    if (!editTarget || !editModalData.name || !editModalData.duration || !editModalData.price) {
       return
     }
 
     setSavingEdit(true)
     try {
+      const parsedPrice = parseFloat(editModalData.price)
+      if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+        throw new Error("Please enter a valid price.")
+      }
+
+      const encodedDiscount = serializeOpeningDiscount(editModalData.discount)
+      const preservedDescription =
+        !encodedDiscount && editTarget.rawDescription && !parseOpeningDiscount(editTarget.rawDescription)
+          ? editTarget.rawDescription
+          : null
+
       await patchOpening(editTarget.openingId, {
         staff_name: editModalData.name,
         title: editModalData.employee || null,
+        description: encodedDiscount || preservedDescription,
+        listed_price: parsedPrice,
         listing_expires_at: buildListingExpiresAt(editTarget.startsAt, editModalData.duration),
       })
       handleCloseEditModal()
@@ -537,6 +560,33 @@ export function VendorAppointmentsPage() {
                   value={editModalData.employee}
                   onChange={(e) => setEditModalData((prev) => ({ ...prev, employee: e.target.value }))}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 font-sans text-foreground shadow-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">
+                  Discount (optional)
+                </label>
+                <input
+                  type="text"
+                  value={editModalData.discount}
+                  onChange={(e) => setEditModalData((prev) => ({ ...prev, discount: e.target.value }))}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 font-sans text-foreground shadow-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="20% off, $10 off, Student discount..."
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">
+                  Price ($) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editModalData.price}
+                  onChange={(e) => setEditModalData((prev) => ({ ...prev, price: e.target.value }))}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 font-sans text-foreground shadow-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="0.00"
+                  required
                 />
               </div>
               <div className="flex flex-wrap justify-between gap-2 pt-2">

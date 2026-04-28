@@ -6,6 +6,7 @@ import { getBusinessById } from "@/lib/queries/business"
 import { getMyReservations, holdReservation, confirmReservation, cancelReservation } from "@/lib/queries/reservations"
 import { getMyReviews } from "@/lib/queries/reviews"
 import { getMyFavorites } from "@/lib/queries/favorites"
+import { parseOpeningDiscount } from "@/lib/openingDiscount"
 import { ProfileModal } from "@/components/ProfileModal"
 import { ReviewModal } from "@/components/ReviewModal"
 import { ChevronDown, Star, Heart } from "lucide-react"
@@ -25,6 +26,27 @@ function formatTime(dateString) {
     hour: 'numeric',
     minute: '2-digit'
   })
+}
+
+function getDiscountText(opening) {
+  const discount = parseOpeningDiscount(opening?.description)
+  return discount || "No discount listed"
+}
+
+function DiscountHighlight({ opening }) {
+  const hasDiscount = Boolean(parseOpeningDiscount(opening?.description))
+
+  return (
+    <p
+      className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${
+        hasDiscount
+          ? "bg-rose-100 text-rose-900 dark:bg-rose-500/20 dark:text-rose-100"
+          : "bg-muted text-muted-foreground"
+      }`}
+    >
+      Discount: {getDiscountText(opening)}
+    </p>
+  )
 }
 
 export function ClientHomePage() {
@@ -308,6 +330,7 @@ export function ClientHomePage() {
                         <p className="text-xs text-muted-foreground mt-1">
                           Price: ${item.listed_price} · Staff: {item.staff_name || "N/A"}
                         </p>
+                        <DiscountHighlight opening={item} />
                         <p className="mt-1 text-xs text-muted-foreground">
                           Appointment type: {getAppointmentType(item)}
                         </p>
@@ -356,6 +379,7 @@ export function ClientHomePage() {
                         <p className="text-xs text-muted-foreground mt-1">
                            Status: {item.reservation.status}
                         </p>
+                        <DiscountHighlight opening={item.opening} />
                         <p className="mt-1 text-xs text-muted-foreground">
                           Appointment type: {getAppointmentType(item.opening)}
                         </p>
@@ -410,12 +434,13 @@ export function ClientHomePage() {
                             <p className="text-xs text-muted-foreground mt-0.5">
                               {formatTime(item.opening.starts_at)}
                             </p>
-                            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
-                              Completed
-                            </p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              Appointment type: {getAppointmentType(item.opening)}
-                            </p>
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+                            Completed
+                          </p>
+                          <DiscountHighlight opening={item.opening} />
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Appointment type: {getAppointmentType(item.opening)}
+                          </p>
                           </div>
                           <div className="flex h-fit flex-col items-end gap-2">
                             {!reviewedReservationIds.has(item.reservation.reservation_id) ? (

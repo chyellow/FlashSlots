@@ -2,13 +2,13 @@ import { useEffect, useState } from "react"
 import { getProfileByAccountId } from "@/lib/queries/profile"
 import { getBusinessById } from "@/lib/queries/business"
 import { getBusinessRating, getBusinessReviews, getClientStats } from "@/lib/queries/reviews"
-import { getMyFavorites, addFavorite, removeFavorite } from "@/lib/queries/favorites"
+import { addFavorite, removeFavorite } from "@/lib/queries/favorites"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { MapPin, Phone, Mail, Clock, Star, XCircle, X, ChevronDown, Heart } from "lucide-react"
 
 
-export function ProfileModal({ accountId, businessId, onClose, onFavoriteChange }) {
+export function ProfileModal({ accountId, businessId, onClose, onFavoriteChange, favoriteBusinessIds = [] }) {
   const [profile, setProfile] = useState(null)
   const [rating, setRating] = useState(null)
   const [reviews, setReviews] = useState([])
@@ -29,7 +29,7 @@ export function ProfileModal({ accountId, businessId, onClose, onFavoriteChange 
     setReviews([])
     setClientStats(null)
     setReviewsOpen(false)
-    setIsFavorited(false)
+    setIsFavorited(businessId ? favoriteBusinessIds.includes(businessId) : false)
 
     const fetchData = async () => {
       try {
@@ -49,12 +49,6 @@ export function ProfileModal({ accountId, businessId, onClose, onFavoriteChange 
             setReviews(reviewsData)
           } catch {
             // reviews not available yet
-          }
-          try {
-            const favs = await getMyFavorites()
-            setIsFavorited(favs.some((f) => f.business_id === businessData.business_id))
-          } catch {
-            // favorites not available
           }
         } else {
           try {

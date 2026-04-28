@@ -72,55 +72,61 @@ export function ClientHomePage() {
     setBusinessNamesById(namesById)
   }
 
+  const loadFavorites = async () => {
+    try {
+      const favs = await getMyFavorites()
+      setFavorites(favs)
+      const favResults = await Promise.allSettled(
+        favs.map((f) => getBusinessById(f.business_id))
+      )
+      const bizMap = {}
+      favResults.forEach((result, i) => {
+        if (result.status === "fulfilled" && result.value) {
+          bizMap[favs[i].business_id] = result.value
+        }
+      })
+      setFavoriteBusinesses(bizMap)
+      return favs
+    } catch {
+      setFavorites([])
+      return []
+    }
+  }
+
   const loadData = async () => {
     setDataLoading(true)
     try {
-      const [ops, reses] = await Promise.all([
+      const [opsResult, resesResult, reviewsResult, favsResult] = await Promise.allSettled([
         getOpenings(),
         getMyReservations(),
+        getMyReviews(),
+        loadFavorites(),
       ])
 
-      try {
-        const myReviews = await getMyReviews()
-        setReviewedReservationIds(new Set(myReviews.map(r => r.reservation_id)))
-      } catch {
-        setReviewedReservationIds(new Set())
-      }
+      const ops = opsResult.status === "fulfilled" ? opsResult.value : []
+      const reses = resesResult.status === "fulfilled" ? resesResult.value : []
+      const myReviews = reviewsResult.status === "fulfilled" ? reviewsResult.value : []
+      const favs = favsResult.status === "fulfilled" ? favsResult.value : []
 
-      let favs = []
-      try {
-        favs = await getMyFavorites()
-        setFavorites(favs)
-        const favResults = await Promise.allSettled(
-          favs.map((f) => getBusinessById(f.business_id))
-        )
-        const bizMap = {}
-        favResults.forEach((result, i) => {
-          if (result.status === "fulfilled" && result.value) {
-            bizMap[favs[i].business_id] = result.value
-          }
-        })
-        setFavoriteBusinesses(bizMap)
-      } catch {
-        setFavorites([])
-      }
+      setReviewedReservationIds(new Set(myReviews.map(r => r.reservation_id)))
 
       const confirmedRes = reses.filter(r => r.status === 'CONFIRMED')
-      const confirmedWithOpenings = await Promise.all(
-        confirmedRes.map(async (r) => {
-          const op = await getOpening(r.opening_id)
-          return { reservation: r, opening: op }
-        })
-      )
-      setConfirmed(confirmedWithOpenings)
-
       const completedRes = reses.filter(r => r.status === 'COMPLETED')
-      const completedWithOpenings = await Promise.all(
-        completedRes.map(async (r) => {
+      const holdRes = reses.find(r => r.status === 'HOLD')
+
+      const [confirmedWithOpenings, completedWithOpenings, holdOpening] = await Promise.all([
+        Promise.all(confirmedRes.map(async (r) => {
           const op = await getOpening(r.opening_id)
           return { reservation: r, opening: op }
-        })
-      )
+        })),
+        Promise.all(completedRes.map(async (r) => {
+          const op = await getOpening(r.opening_id)
+          return { reservation: r, opening: op }
+        })),
+        holdRes?.hold_expires_at && new Date(holdRes.hold_expires_at).getTime() > Date.now()
+          ? getOpening(holdRes.opening_id)
+          : Promise.resolve(null),
+      ])
 
       const favBusinessPlaceholders = favs.map((f) => ({ business_id: f.business_id }))
       await loadBusinessNames([
@@ -130,19 +136,15 @@ export function ClientHomePage() {
         ...favBusinessPlaceholders,
       ])
 
-      setAvailable(ops)
+      setConfirmed(confirmedWithOpenings)
       setCompleted(completedWithOpenings)
+      setAvailable(ops)
 
-      const holdRes = reses.find(r => r.status === 'HOLD')
-      if (holdRes && holdRes.hold_expires_at) {
+      if (holdOpening && holdRes) {
         const expiresAt = new Date(holdRes.hold_expires_at).getTime()
-        const now = Date.now()
-        if (expiresAt > now) {
-          const op = await getOpening(holdRes.opening_id)
-          setPending({ reservation: holdRes, opening: op })
-          setCountdown(Math.floor((expiresAt - now) / 1000))
-          setAvailable(prev => prev.filter(a => a.opening_id !== holdRes.opening_id))
-        }
+        setPending({ reservation: holdRes, opening: holdOpening })
+        setCountdown(Math.floor((expiresAt - Date.now()) / 1000))
+        setAvailable(prev => prev.filter(a => a.opening_id !== holdRes.opening_id))
       }
     } catch (err) {
       console.error("Failed to load data:", err)
@@ -494,7 +496,8 @@ export function ClientHomePage() {
         accountId={viewProfileTarget?.accountId}
         businessId={viewProfileTarget?.businessId}
         onClose={() => setViewProfileTarget(null)}
-        onFavoriteChange={() => loadData()}
+        onFavoriteChange={() => loadFavorites()}
+        favoriteBusinessIds={favorites.map((f) => f.business_id)}
       />
 
       {reviewTarget && (

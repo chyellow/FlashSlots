@@ -1,13 +1,12 @@
 import * as React from "react";
 import { Clock, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+
 import {
   ContextMenu,
   ContextMenuTrigger,
   ContextMenuContent,
   ContextMenuItem,
-  ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import {
   DndContext,
@@ -26,6 +25,13 @@ import { nanoid } from "nanoid";
 const timeToMinutes = (time) => {
   const [h, m] = time.split(":").map(Number);
   return h * 60 + m;
+};
+
+const toDateKey = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 };
 
 const minutesToTime = (minutes) => {
@@ -66,9 +72,9 @@ const mergeAdjacentSpans = (spans) => {
 
   const byDay = new Map();
   spans.forEach((span) => {
-    const daySpans = byDay.get(span.week_day) || [];
+    const daySpans = byDay.get(span.date) || [];
     daySpans.push(span);
-    byDay.set(span.week_day, daySpans);
+    byDay.set(span.date, daySpans);
   });
 
   const merged = [];
@@ -109,8 +115,9 @@ function useCalendarCreation({
   endTime,
   events,
   disabledEvents = [],
+  lockedEvents = [],
   onCreate,
-  colIndex,
+  date,
   isDayDisabled = false,
 }) {
   const [isCreating, setIsCreating] = React.useState(false);
@@ -130,10 +137,10 @@ function useCalendarCreation({
   const startOffset = startTime * 60;
 
   const sortedConstraints = React.useMemo(() => {
-    return [...events, ...disabledEvents].sort(
+    return [...events, ...disabledEvents, ...lockedEvents].sort(
       (a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time),
     );
-  }, [events, disabledEvents]);
+  }, [events, disabledEvents, lockedEvents]);
 
   const getMinutesFromY = (y) => {
     if (!containerRef.current) return 0;
@@ -189,6 +196,7 @@ function useCalendarCreation({
 
     const handlePointerUp = (ev) => {
       const currentMins = getMinutesFromY(ev.clientY);
+      const didDrag = currentMins !== startMins;
 
       let finalStart = Math.min(startMins, currentMins);
       let finalEnd = Math.max(startMins, currentMins);
@@ -196,13 +204,10 @@ function useCalendarCreation({
       finalStart = Math.max(minStartMins, finalStart);
       finalEnd = Math.min(maxEndMins, finalEnd);
 
-      if (finalEnd - finalStart < timeIncrements) {
+      if (!didDrag) {
+        finalEnd = Math.min(finalStart + 60, maxEndMins);
+      } else if (finalEnd - finalStart < timeIncrements) {
         finalEnd = Math.min(finalStart + timeIncrements, maxEndMins);
-      }
-
-      if (finalEnd - finalStart <= timeIncrements) {
-        const oneHourEnd = finalStart + 60;
-        finalEnd = Math.min(oneHourEnd, maxEndMins);
       }
 
       if (finalEnd > finalStart) {
@@ -242,7 +247,7 @@ function useCalendarCreation({
 
     if (pendingConfirmation) {
       onCreate(
-        colIndex,
+        date,
         pendingConfirmation.start,
         pendingConfirmation.end,
         modalData,
@@ -296,6 +301,8 @@ const AvailabilityDragContext = React.createContext(null);
 export function Availability({
   value = [],
   onValueChange,
+  lockedEvents = [],
+  onLockedEventSelect,
   disabled = [],
   days = [0, 1, 2, 3, 4, 5, 6],
   showAllDays = true,
@@ -317,12 +324,35 @@ export function Availability({
 
   const mainContainerRef = React.useRef(null);
 
+  const weekDates = React.useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      return d;
+    });
+  }, []);
+
   const renderedDays = React.useMemo(() => {
     if (showAllDays) {
-      return [0, 1, 2, 3, 4, 5, 6];
+      return weekDates.map((d) => d.getDay());
     }
     return days;
-  }, [days, showAllDays]);
+  }, [days, showAllDays, weekDates]);
+
+  const monthLabel = React.useMemo(() => {
+    const fmt = new Intl.DateTimeFormat("en-US", { month: "long" });
+    const first = fmt.format(weekDates[0]);
+    const last = fmt.format(weekDates[6]);
+    return first === last ? first : `${first} – ${last}`;
+  }, [weekDates]);
+
+  const dateByDayIndex = React.useMemo(() => {
+  const map = new Map();
+  weekDates.forEach((d) => map.set(d.getDay(), d));
+  return map;
+}, [weekDates]);
 
   React.useEffect(() => {
     setInternalValue(value);
@@ -345,10 +375,10 @@ export function Availability({
     updateValue(newValue, isComplete);
   };
 
-  const handleCreate = (dayIndex, startMinutes, endMinutes, modalData = {}) => {
+  const handleCreate = (date, startMinutes, endMinutes, modalData = {}) => {
     const newSpan = {
       id: generateId(),
-      week_day: dayIndex,
+      date: toDateKey(date),
       start_time: minutesToTime(startMinutes),
       end_time: minutesToTime(endMinutes),
       active: true,
@@ -368,14 +398,14 @@ export function Availability({
     );
   };
 
-  const handleMove = (id, newStart, newEnd, newDayIndex) => {
+  const handleMove = (id, newStart, newEnd, newDate) => {
     const newValue = internalValue.map((span) => {
       if (span.id === id) {
         return {
           ...span,
           start_time: newStart,
           end_time: newEnd,
-          week_day: newDayIndex,
+          date: toDateKey(newDate),
         };
       }
       return span;
@@ -407,8 +437,11 @@ export function Availability({
       return { isValid: false, newStart, duration };
     }
 
+    const targetDate = dateByDayIndex.get(targetDayIndex);
+    const targetDateKey = targetDate ? toDateKey(targetDate) : null;
+
     const dayEvents = internalValue.filter(
-      (e) => e.week_day === targetDayIndex && e.id !== span.id,
+      (e) => e.date === targetDateKey && e.id !== span.id,
     );
     const hasEventOverlap = dayEvents.some((e) => {
       const eStart = timeToMinutes(e.start_time);
@@ -523,11 +556,14 @@ export function Availability({
     if (!isValid) return;
 
     const newEndVal = newStart + duration;
+    const targetDate = dateByDayIndex.get(targetDayIndex);
+    if (!targetDate) return;
+
     handleMove(
       span.id,
       minutesToTime(newStart),
       minutesToTime(newEndVal),
-      targetDayIndex,
+      targetDate,
     );
   };
 
@@ -563,22 +599,42 @@ export function Availability({
             className,
           )}
         >
+          {/* Month label */}
+          <div className="flex w-full border-b bg-muted/40 px-3 py-2 text-sm font-semibold">
+            {monthLabel}
+          </div>
+
           {/* Header */}
           <div className="flex w-full border-b bg-muted/40">
             <div className="w-14 flex-shrink-0 border-r p-2 text-xs font-medium text-muted-foreground" />
             <div className="flex flex-1">
-              {renderedDays.map((dayIndex) => {
+              {renderedDays.map((dayIndex, i) => {
                 const isActive = days.includes(dayIndex);
+                const date = weekDates[i];
+                const isToday = i === 0;
                 return (
                   <div
                     key={dayIndex}
                     className={cn(
-                      "flex-1 border-r px-1 py-3 text-center text-sm font-medium last:border-r-0",
+                      "flex-1 border-r px-1 py-2 text-center last:border-r-0",
                       !isActive && "bg-muted/30 text-muted-foreground",
                     )}
                   >
-                    <span className="hidden sm:inline">{DAYS[dayIndex]}</span>
-                    <span className="sm:hidden">{SHORT_DAYS[dayIndex]}</span>
+                    <div className="flex justify-center leading-none">
+                      <span
+                        className={cn(
+                          "text-lg font-semibold",
+                          isToday &&
+                            "flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground",
+                        )}
+                      >
+                        {date.getDate()}
+                      </span>
+                    </div>
+                    <div className="text-xs font-medium text-muted-foreground mt-1">
+                      <span className="hidden sm:inline">{DAYS[dayIndex]}</span>
+                      <span className="sm:hidden">{SHORT_DAYS[dayIndex]}</span>
+                    </div>
                   </div>
                 );
               })}
@@ -620,22 +676,26 @@ export function Availability({
 
               {renderedDays.map((dayIndex, i) => {
                 const isActive = days.includes(dayIndex);
+                const date = weekDates[i];
+                const dateKey = toDateKey(date);
 
                 return (
                   <DayColumn
                     key={dayIndex}
                     dayIndex={dayIndex}
-                    colIndex={i}
+                    date={date}
                     startTime={startTime}
                     endTime={endTime}
                     timeIncrements={timeIncrements}
-                    events={internalValue.filter(
-                      (e) => e.week_day === dayIndex,
+                    events={internalValue.filter((e) => e.date === dateKey)}
+                    lockedEvents={lockedEvents.filter(
+                      (e) => e.date === dateKey,
                     )}
                     disabledEvents={disabled.filter(
                       (e) => e.week_day === dayIndex,
                     )}
                     onCreate={handleCreate}
+                    onLockedEventSelect={onLockedEventSelect}
                     onResize={handleResize}
                     onDelete={handleDelete}
                     useAmPm={useAmPm}
@@ -663,13 +723,15 @@ export function Availability({
 
 function DayColumn({
   dayIndex,
-  colIndex,
+  date,
   startTime,
   endTime,
   timeIncrements,
   events,
+  lockedEvents = [],
   disabledEvents = [],
   onCreate,
+  onLockedEventSelect,
   onResize,
   onDelete,
   useAmPm,
@@ -712,9 +774,10 @@ function DayColumn({
     startTime,
     endTime,
     events,
+    lockedEvents,
     disabledEvents,
     onCreate,
-    colIndex,
+    date,
     isDayDisabled,
   });
 
@@ -847,10 +910,29 @@ function DayColumn({
             containerRef={containerRef}
             isDragging={isDragging}
             isLocked={isDayDisabled}
-            slotClassName={slotClassName}
+            slotClassName={event.className || slotClassName}
           />
         );
       })}
+      {lockedEvents.map((event) => (
+        <DraggableTimeSpan
+          key={event.id}
+          span={event}
+          startTime={startTime}
+          endTime={endTime}
+          minStart={startTime * 60}
+          maxEnd={endTime * 60}
+          onResize={onResize}
+          onDelete={onDelete}
+          useAmPm={useAmPm}
+          timeIncrements={timeIncrements}
+          containerRef={containerRef}
+          isDragging={false}
+          isLocked={true}
+          onSettingsClick={onLockedEventSelect}
+          slotClassName={event.className || slotClassName}
+        />
+      ))}
       {isCreating && creationStart !== null && currentMouseY !== null && (
         <div
           className="absolute left-0 right-0 mx-1 rounded bg-primary/30 border border-primary z-20 pointer-events-none"
@@ -919,7 +1001,7 @@ function DayColumn({
             <form onSubmit={handleModalSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Appointment Name *
+                  Staff name *
                 </label>
                 <input
                   type="text"
@@ -929,11 +1011,11 @@ function DayColumn({
                   }
                   className={modalFieldClassName}
                   required
-                />
+                ></input>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Duration (minutes before start time) *
+                  Booking expiration (minutes before start) *
                 </label>
                 <select
                   value={modalData.duration || ""}
@@ -960,7 +1042,7 @@ function DayColumn({
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Employee (optional)
+                  Appointment Type (optional)
                 </label>
                 <input
                   type="text"
@@ -1043,6 +1125,7 @@ function DraggableTimeSpan({
   containerRef,
   isDragging,
   isLocked = false,
+  onSettingsClick,
   slotClassName = "bg-muted",
 }) {
   const context = React.useContext(AvailabilityDragContext);
@@ -1061,7 +1144,7 @@ function DraggableTimeSpan({
   const style = {
     top: `${((startMinutes - startOffset) / totalMinutes) * 100}%`,
     height: `${(durationMinutes / totalMinutes) * 100}%`,
-    opacity: isDragging ? 0 : isLocked ? 0.6 : 1,
+    opacity: isDragging ? 0 : isLocked ? 0.95 : 1,
   };
 
   const handleResizeStart = (e, edge) => {
@@ -1173,6 +1256,21 @@ function DraggableTimeSpan({
         isLocked={isLocked}
       />
 
+      {isLocked && onSettingsClick && (
+        <button
+          type="button"
+          aria-label={`Edit ${span.name || "appointment"}`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSettingsClick(span);
+          }}
+          className="absolute right-1.5 top-1.5 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm transition-colors hover:bg-background hover:text-foreground"
+        >
+          <Settings className="h-3.5 w-3.5" />
+        </button>
+      )}
+
       {/* Resize Handle Bottom */}
       {canResize && (
         <div
@@ -1193,7 +1291,7 @@ function DraggableTimeSpan({
         "absolute left-1 right-1 rounded border p-3 shadow-sm text-xs group overflow-hidden touch-none",
         slotClassName,
         isDragging && "opacity-0",
-        isLocked && "border-dashed opacity-60 cursor-default bg-muted/50",
+        isLocked && "border-dashed cursor-default",
       )}
     >
       {content}
@@ -1255,9 +1353,12 @@ function TimeSpanCard({ span, useAmPm, duration, isLocked = false }) {
         <p className="font-semibold leading-none">
           {formatDisplayTime(span.start_time, useAmPm)}
         </p>
-        {/* Show appointment name if it exists */}
+        {/* Show primary label if it exists */}
         {span.name && (
           <p className="text-xs font-medium truncate">{span.name}</p>
+        )}
+        {span.employee && (
+          <p className="text-[10px] truncate opacity-80">{span.employee}</p>
         )}
         {/* Only show duration when the slot is tall enough (2h+) */}
         {calculatedDuration >= 2 && (
@@ -1270,7 +1371,6 @@ function TimeSpanCard({ span, useAmPm, duration, isLocked = false }) {
         )}
       </div>
       <div className="flex flex-col gap-1 mt-auto text-inherit">
-        {isLocked && <Settings className="h-3 w-3 opacity-50" />}
         <p className="font-semibold leading-none !text-inherit">
           {formatDisplayTime(span.end_time, useAmPm)}
         </p>

@@ -19,7 +19,6 @@ import { ClientAboutPage } from "./views/client/about";
 import { ClientHelpPage } from "./views/client/help";
 
 import { VendorAppointmentsPage } from "./views/vendor/appointments";
-import { VendorPostPage } from "./views/vendor/post";
 import { VendorAboutPage } from "./views/vendor/about";
 import { VendorHelpPage } from "./views/vendor/help";
 
@@ -62,7 +61,7 @@ function App() {
                     >
                         <Route index element={<Navigate to="appointments" replace />} />
                         <Route path="appointments" element={<VendorAppointmentsPage />} />
-                        <Route path="post" element={<VendorPostPage />} />
+                        <Route path="post" element={<Navigate to="/vendor/appointments" replace />} />
                         <Route path="about" element={<VendorAboutPage />} />
                         <Route path="help" element={<VendorHelpPage />} />
                     </Route>

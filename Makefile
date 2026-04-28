@@ -1,4 +1,20 @@
-.PHONY: dev db backend frontend stop setup
+.PHONY: dev db backend frontend stop setup test integration-test
+
+# Run Python test suite (pytest); see tests/README.md
+test:
+	@if [ -x services/api/.venv/bin/pytest ]; then \
+		services/api/.venv/bin/pytest; \
+	else \
+		pytest; \
+	fi
+
+# API + PostgreSQL integration tests (requires docker compose db); see tests/README.md
+integration-test:
+	@if [ -x services/api/.venv/bin/pytest ]; then \
+		services/api/.venv/bin/pytest tests/integration -v -m integration --strict-markers; \
+	else \
+		pytest tests/integration -v -m integration --strict-markers; \
+	fi
 
 # Default command that runs all services concurrently
 dev:

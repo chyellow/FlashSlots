@@ -21,6 +21,15 @@ def get_my_business(db: Session, account: Account) -> Business:
     return business
 
 
+def get_business_by_id(db: Session, business_id: int) -> Business:
+    business = db.query(Business).filter(
+        Business.business_id == business_id
+    ).first()
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    return business
+
+
 def update_my_business(db: Session, account: Account, payload: BusinessUpdate) -> Business:
     business = get_my_business(db, account)
 

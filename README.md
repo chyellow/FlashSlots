@@ -22,7 +22,7 @@ frontend infrastructure and project setup.
 
 there is a makefile, run the command in the root directory, have docker launched on your desktop
 ```bash
-make
+make dev
 ```
 
 ### Prerequisites
@@ -114,7 +114,29 @@ Open `services/api/.env` and confirm it contains:
 ```
 DATABASE_URL=postgresql+psycopg://flashslots:flashslots@127.0.0.1:5437/flashslots
 CORS_ORIGINS=http://localhost:5173
+SMTP_EMAIL=
+SMTP_APP_PASSWORD=
 ```
+
+#### Email Notifications (SMTP)
+
+FlashSlots sends email notifications for booking confirmations and cancellations using Gmail SMTP. To enable emails:
+
+1. Create a Gmail account (or use an existing one).
+2. Enable 2-Step Verification on the Google account.
+3. Go to **Google Account > Security > App passwords** and generate an app password for "Mail".
+4. Set the credentials in `services/api/.env`:
+   ```
+   SMTP_EMAIL=your-email@gmail.com
+   SMTP_APP_PASSWORD=xxxx xxxx xxxx xxxx
+   ```
+5. For production (Render), add the same two env vars (`SMTP_EMAIL`, `SMTP_APP_PASSWORD`) in the web service's Environment settings.
+
+If the SMTP credentials are not set, the app runs normally and emails are silently skipped.
+
+**Emails are sent for:**
+- **Booking confirmed** — both the client and vendor receive an email with the appointment details.
+- **Cancellation** — the other party is notified when a confirmed appointment is cancelled (holds do not trigger emails).
 
 Start the backend server:
 

@@ -10,3 +10,7 @@ export const updateMyBusiness = async (payload) => {
         body: payload,
     });
 };
+
+export const getBusinessById = async (businessId) => {
+    return apiFetch(`/businesses/${businessId}`);
+};

@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+
+const MIN_PASSWORD_LENGTH = 8;
 
 export default function RegisterView() {
   const navigate = useNavigate();
   const { registerAction } = useAuth();
+  const passwordInputRef = useRef(null);
 
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
@@ -14,10 +17,21 @@ export default function RegisterView() {
   const [role, setRole] = useState("CLIENT");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const isBusiness = role === "BUSINESS";
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
+
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      passwordInputRef.current?.setCustomValidity(
+        `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`,
+      );
+      passwordInputRef.current?.reportValidity();
+      return;
+    }
+
+    passwordInputRef.current?.setCustomValidity("");
     setLoading(true);
 
     try {
@@ -55,25 +69,31 @@ export default function RegisterView() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">Display name</label>
+            <label className="text-sm font-medium">
+              {isBusiness ? "Business name" : "Display name"}{" "}
+              <span>*</span>
+            </label>
             <input
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Your full name"
-              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder={isBusiness ? "FlashSlots Inc." : "Flash E. Slots"}
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-s placeholder:italic"
               required
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">Username</label>
+            <label className="text-sm font-medium">
+              Username <span>*</span>
+            </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value.toLowerCase())}
-              placeholder="yourhandle"
-              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="flash_slotter"
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-s placeholder:italic"
+              required
             />
           </div>
 
@@ -89,27 +109,50 @@ export default function RegisterView() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">Email</label>
+            <label className="text-sm font-medium">
+              Email <span>*</span>
+            </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="flash@slots.com"
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-s placeholder:italic"
               required
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">Password</label>
+            <label className="text-sm font-medium">
+              Password <span>*</span>
+            </label>
             <input
+              ref={passwordInputRef}
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                e.target.setCustomValidity("");
+              }}
+              onInvalid={(e) => {
+                if (e.currentTarget.validity.valueMissing) {
+                  e.currentTarget.setCustomValidity("Please enter a password.");
+                  return;
+                }
+
+                if (e.currentTarget.validity.customError) {
+                  return;
+                }
+              }}
               placeholder="••••••••"
-              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:opacity-60"
               required
             />
+            <p
+              className="text-xs text-gray-500"
+            >
+              {`Use at least ${MIN_PASSWORD_LENGTH} characters.`}
+            </p>
           </div>
 
           <div className="flex flex-col gap-1">

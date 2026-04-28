@@ -1,16 +1,75 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { getMyProfile, updateMyProfile } from "@/lib/queries/profile"
+import { getMyBusiness } from "@/lib/queries/business"
+import { getBusinessRating } from "@/lib/queries/reviews"
 import { useAuth } from "@/context/AuthContext"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, LogOut } from "lucide-react"
+import { ArrowLeft, LogOut, Check, ChevronsUpDown, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command"
+
+const US_STATES = [
+  { value: "AL", label: "Alabama" },
+  { value: "AK", label: "Alaska" },
+  { value: "AZ", label: "Arizona" },
+  { value: "AR", label: "Arkansas" },
+  { value: "CA", label: "California" },
+  { value: "CO", label: "Colorado" },
+  { value: "CT", label: "Connecticut" },
+  { value: "DE", label: "Delaware" },
+  { value: "FL", label: "Florida" },
+  { value: "GA", label: "Georgia" },
+  { value: "HI", label: "Hawaii" },
+  { value: "ID", label: "Idaho" },
+  { value: "IL", label: "Illinois" },
+  { value: "IN", label: "Indiana" },
+  { value: "IA", label: "Iowa" },
+  { value: "KS", label: "Kansas" },
+  { value: "KY", label: "Kentucky" },
+  { value: "LA", label: "Louisiana" },
+  { value: "ME", label: "Maine" },
+  { value: "MD", label: "Maryland" },
+  { value: "MA", label: "Massachusetts" },
+  { value: "MI", label: "Michigan" },
+  { value: "MN", label: "Minnesota" },
+  { value: "MS", label: "Mississippi" },
+  { value: "MO", label: "Missouri" },
+  { value: "MT", label: "Montana" },
+  { value: "NE", label: "Nebraska" },
+  { value: "NV", label: "Nevada" },
+  { value: "NH", label: "New Hampshire" },
+  { value: "NJ", label: "New Jersey" },
+  { value: "NM", label: "New Mexico" },
+  { value: "NY", label: "New York" },
+  { value: "NC", label: "North Carolina" },
+  { value: "ND", label: "North Dakota" },
+  { value: "OH", label: "Ohio" },
+  { value: "OK", label: "Oklahoma" },
+  { value: "OR", label: "Oregon" },
+  { value: "PA", label: "Pennsylvania" },
+  { value: "RI", label: "Rhode Island" },
+  { value: "SC", label: "South Carolina" },
+  { value: "SD", label: "South Dakota" },
+  { value: "TN", label: "Tennessee" },
+  { value: "TX", label: "Texas" },
+  { value: "UT", label: "Utah" },
+  { value: "VT", label: "Vermont" },
+  { value: "VA", label: "Virginia" },
+  { value: "WA", label: "Washington" },
+  { value: "WV", label: "West Virginia" },
+  { value: "WI", label: "Wisconsin" },
+  { value: "WY", label: "Wyoming" },
+  { value: "DC", label: "District of Columbia" },
+]
 
 function ProfileView() {
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
   const [profile, setProfile] = useState(null)
+  const [rating, setRating] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [phone, setPhone] = useState("")
@@ -25,10 +84,17 @@ function ProfileView() {
         setProfile(data)
         setPhone(data.phone || "")
         setCity(data.city || "")
-        setState(data.state || "")
+        setState(data.state_region || "")
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
+
+    if (user?.role === "BUSINESS") {
+      getMyBusiness()
+        .then((biz) => getBusinessRating(biz.business_id))
+        .then((r) => setRating(r))
+        .catch(() => {})
+    }
   }, [])
 
   async function handleSave() {
@@ -112,6 +178,32 @@ function ProfileView() {
               {profile.display_name}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">@{profile.username}</p>
+            {rating && (
+              <div className="flex items-center justify-center gap-2 mt-2">
+                {rating.average_rating ? (
+                  <>
+                    <div className="flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          className={`h-4 w-4 ${
+                            star <= Math.round(rating.average_rating)
+                              ? "fill-amber-400 text-amber-400"
+                              : "text-muted-foreground/30"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm font-medium">{rating.average_rating}</span>
+                    <span className="text-xs text-muted-foreground">
+                      ({rating.total_reviews} review{rating.total_reviews !== 1 ? "s" : ""})
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-xs text-muted-foreground">No reviews yet</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -149,13 +241,7 @@ function ProfileView() {
 
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-muted-foreground">State</label>
-            <input
-              type="text"
-              value={state}
-              onChange={(e) => setState(e.target.value)}
-              placeholder="NJ"
-              className="border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-            />
+            <StateCombobox value={state} onChange={setState} />
           </div>
 
           <button
@@ -169,6 +255,54 @@ function ProfileView() {
         </div>
       </div>
     </div>
+  )
+}
+
+function StateCombobox({ value, onChange }) {
+  const [open, setOpen] = useState(false)
+  const selected = US_STATES.find(
+    (s) => s.value === value || s.label.toLowerCase() === value?.toLowerCase()
+  )
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          role="combobox"
+          aria-expanded={open}
+          className="flex w-full items-center justify-between border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          <span className={selected ? "" : "text-muted-foreground"}>
+            {selected ? selected.label : "Select state..."}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search state..." />
+          <CommandList>
+            <CommandEmpty>No state found.</CommandEmpty>
+            <CommandGroup>
+              {US_STATES.map((s) => (
+                <CommandItem
+                  key={s.value}
+                  value={s.label}
+                  onSelect={() => {
+                    onChange(s.value)
+                    setOpen(false)
+                  }}
+                >
+                  <Check className={`mr-2 h-4 w-4 ${selected?.value === s.value ? "opacity-100" : "opacity-0"}`} />
+                  {s.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   )
 }
 

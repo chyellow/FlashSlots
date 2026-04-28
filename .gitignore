@@ -146,6 +146,11 @@ vite.config.ts.timestamp-*
 venv/
 *.egg-info/
 
+# pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
 # Python
 .venv/
 venv/
@@ -162,6 +167,7 @@ apps/web/.env
 # Virtual envs nested inside project
 services/api/.venv/
 services/api/app/venv/
+services/api/venv/
 
 # IDE
 # IDE

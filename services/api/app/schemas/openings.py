@@ -34,6 +34,7 @@ class OpeningRead(BaseModel):
     posted_by_account_id: int
     staff_name: str | None = None
     client_name: str | None = None
+    client_account_id: int | None = None
     title: str | None = None
     description: str | None = None
     starts_at: datetime

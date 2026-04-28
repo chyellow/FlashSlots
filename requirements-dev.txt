@@ -1,0 +1,9 @@
+# Development / test tooling (install on top of API deps).
+# Usage from repo root:
+#   python -m venv .venv && source .venv/bin/activate  # or Windows equivalent
+#   pip install -r requirements-dev.txt
+#
+-r services/api/requirements.txt
+
+pytest>=8.0.0
+httpx>=0.27.0

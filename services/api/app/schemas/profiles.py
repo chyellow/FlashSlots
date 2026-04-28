@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 
 class ProfileRead(BaseModel):
@@ -7,6 +7,7 @@ class ProfileRead(BaseModel):
 
     profile_id: int
     account_id: int
+    email: EmailStr
     display_name: str
     phone: str | None = None
     city: str | None = None

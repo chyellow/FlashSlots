@@ -1,9 +1,11 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class HoldRequest(BaseModel):
-    opening_id: int
+    """opening_id must be a positive bigint (matches DB / API expectations)."""
+
+    opening_id: int = Field(ge=1)
 
 
 class ReservationRead(BaseModel):

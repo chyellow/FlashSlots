@@ -12,5 +12,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
 
+    smtp_email: str = ""
+    smtp_app_password: str = ""
+
 
 settings = Settings()

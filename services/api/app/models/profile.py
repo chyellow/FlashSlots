@@ -31,6 +31,11 @@ class Profile(Base):
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
+        onupdate=func.now(),
     )
 
     account = relationship("Account", back_populates="profile")
+
+    @property
+    def email(self) -> str:
+        return self.account.email

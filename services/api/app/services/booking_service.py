@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.core.config import settings
 from app.models import Reservation, Opening, Account, Business
+from app.services import notification_service
 
 
 def _now() -> datetime:
@@ -52,6 +53,12 @@ def _get_vendor_business(db: Session, account: Account) -> Business | None:
     return db.query(Business).filter(
         Business.owner_account_id == account.account_id
     ).first()
+
+
+def _get_display_name(account: Account) -> str:
+    if account.profile and account.profile.display_name:
+        return account.profile.display_name
+    return account.email.split("@")[0]
 
 
 def place_hold(db: Session, account: Account, opening_id: int) -> Reservation:
@@ -180,6 +187,28 @@ def confirm_reservation(db: Session, account: Account, reservation_id: int) -> R
 
     db.commit()
     db.refresh(reservation)
+
+    if opening:
+        client_name = _get_display_name(account)
+        vendor_account = opening.business.owner if opening.business else None
+        if vendor_account:
+            notification_service.send_booking_confirmed_to_client(
+                client_email=account.email,
+                client_name=client_name,
+                business_name=opening.business.display_name,
+                title=opening.title,
+                starts_at=opening.starts_at,
+                ends_at=opening.ends_at,
+            )
+            notification_service.send_booking_confirmed_to_vendor(
+                vendor_email=vendor_account.email,
+                client_name=client_name,
+                business_name=opening.business.display_name,
+                title=opening.title,
+                starts_at=opening.starts_at,
+                ends_at=opening.ends_at,
+            )
+
     return reservation
 
 
@@ -217,6 +246,8 @@ def cancel_reservation(
     ):
         raise HTTPException(status_code=409, detail="Reservation is already final")
 
+    was_confirmed = reservation.status == "CONFIRMED"
+
     reservation.status = "CANCELLED_BY_CLIENT" if is_client else "CANCELLED_BY_BUSINESS"
     reservation.cancelled_at = now
     reservation.cancelled_by_account_id = account.account_id
@@ -233,6 +264,68 @@ def cancel_reservation(
     if opening:
         db.add(opening)
 
+    db.commit()
+    db.refresh(reservation)
+
+    if was_confirmed and opening:
+        client_account = db.get(Account, reservation.client_account_id)
+        vendor_account = opening.business.owner if opening.business else None
+        client_name = _get_display_name(client_account) if client_account else "Client"
+        business_name = opening.business.display_name if opening.business else "Provider"
+
+        if is_client and vendor_account:
+            notification_service.send_cancellation_to_vendor(
+                vendor_email=vendor_account.email,
+                client_name=client_name,
+                business_name=business_name,
+                title=opening.title,
+                starts_at=opening.starts_at,
+                reason=reason,
+            )
+        elif is_vendor and client_account:
+            notification_service.send_cancellation_to_client(
+                client_email=client_account.email,
+                client_name=client_name,
+                business_name=business_name,
+                title=opening.title,
+                starts_at=opening.starts_at,
+                reason=reason,
+            )
+
+    return reservation
+
+
+def complete_reservation(db: Session, account: Account, reservation_id: int) -> Reservation:
+    reservation = (
+        db.query(Reservation)
+        .filter(Reservation.reservation_id == reservation_id)
+        .with_for_update()
+        .first()
+    )
+
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    opening = db.get(Opening, reservation.opening_id)
+    business = _get_vendor_business(db, account)
+    is_vendor = business is not None and opening is not None and opening.business_id == business.business_id
+
+    if not is_vendor:
+        raise HTTPException(status_code=403, detail="Only the vendor can complete appointments")
+
+    if reservation.status != "CONFIRMED":
+        raise HTTPException(status_code=409, detail="Only confirmed reservations can be completed")
+
+    now = _now()
+    reservation.status = "COMPLETED"
+    reservation.completed_at = now
+
+    if opening:
+        opening.status = "COMPLETED"
+        opening.version += 1
+        db.add(opening)
+
+    db.add(reservation)
     db.commit()
     db.refresh(reservation)
     return reservation

@@ -2,7 +2,13 @@ import { useEffect, useMemo, useState } from "react"
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 import { getMyProfile } from "@/lib/queries/profile"
 import { getOpenings, getOpening } from "@/lib/queries/openings"
+import { getBusinessById } from "@/lib/queries/business"
 import { getMyReservations, holdReservation, confirmReservation, cancelReservation } from "@/lib/queries/reservations"
+import { getMyReviews } from "@/lib/queries/reviews"
+import { getMyFavorites } from "@/lib/queries/favorites"
+import { ProfileModal } from "@/components/ProfileModal"
+import { ReviewModal } from "@/components/ReviewModal"
+import { ChevronDown, Star, Heart } from "lucide-react"
 
 function formatTimer(seconds) {
   const min = String(Math.floor(seconds / 60)).padStart(2, "0")
@@ -12,40 +18,93 @@ function formatTimer(seconds) {
 
 function formatTime(dateString) {
   const d = new Date(dateString)
-  return d.toLocaleString("en-US", { 
-    weekday: 'short', 
-    month: 'short', 
-    day: 'numeric', 
-    hour: 'numeric', 
-    minute: '2-digit' 
+  return d.toLocaleString("en-US", {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
   })
 }
 
 export function ClientHomePage() {
   const [available, setAvailable] = useState([])
-  const [confirmed, setConfirmed] = useState([]) // Stores { reservation, opening }
-  const [pending, setPending] = useState(null)   // Stores { reservation, opening }
+  const [confirmed, setConfirmed] = useState([])
+  const [completed, setCompleted] = useState([])
+  const [businessNamesById, setBusinessNamesById] = useState({})
+  const [pending, setPending] = useState(null)
   const [countdown, setCountdown] = useState(0)
-  const [cancelTarget, setCancelTarget] = useState(null) // Stores { reservation, opening }
-  
+  const [cancelTarget, setCancelTarget] = useState(null)
+  const [completedMenuOpen, setCompletedMenuOpen] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const [viewProfileTarget, setViewProfileTarget] = useState(null)
+  const [reviewTarget, setReviewTarget] = useState(null)
+  const [reviewedReservationIds, setReviewedReservationIds] = useState(new Set())
+  const [favorites, setFavorites] = useState([])
+  const [favoriteBusinesses, setFavoriteBusinesses] = useState({})
+
   const [profile, setProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(true)
   const [dataLoading, setDataLoading] = useState(true)
 
   const canSelect = pending === null && cancelTarget === null
 
-  // Fetch initial data
+  const loadBusinessNames = async (openings) => {
+    const businessIds = [...new Set(openings.map((opening) => opening.business_id).filter(Boolean))]
+
+    if (businessIds.length === 0) {
+      setBusinessNamesById({})
+      return
+    }
+
+    const results = await Promise.allSettled(
+      businessIds.map((businessId) => getBusinessById(businessId))
+    )
+
+    const namesById = results.reduce((acc, result, index) => {
+      if (result.status === "fulfilled" && result.value?.display_name) {
+        acc[businessIds[index]] = result.value.display_name
+      }
+      return acc
+    }, {})
+
+    setBusinessNamesById(namesById)
+  }
+
   const loadData = async () => {
     setDataLoading(true)
     try {
       const [ops, reses] = await Promise.all([
         getOpenings(),
-        getMyReservations()
+        getMyReservations(),
       ])
 
-      setAvailable(ops)
+      try {
+        const myReviews = await getMyReviews()
+        setReviewedReservationIds(new Set(myReviews.map(r => r.reservation_id)))
+      } catch {
+        setReviewedReservationIds(new Set())
+      }
 
-      // Process confirmed reservations
+      let favs = []
+      try {
+        favs = await getMyFavorites()
+        setFavorites(favs)
+        const favResults = await Promise.allSettled(
+          favs.map((f) => getBusinessById(f.business_id))
+        )
+        const bizMap = {}
+        favResults.forEach((result, i) => {
+          if (result.status === "fulfilled" && result.value) {
+            bizMap[favs[i].business_id] = result.value
+          }
+        })
+        setFavoriteBusinesses(bizMap)
+      } catch {
+        setFavorites([])
+      }
+
       const confirmedRes = reses.filter(r => r.status === 'CONFIRMED')
       const confirmedWithOpenings = await Promise.all(
         confirmedRes.map(async (r) => {
@@ -55,7 +114,25 @@ export function ClientHomePage() {
       )
       setConfirmed(confirmedWithOpenings)
 
-      // Rehydrate a pending hold if the user refreshed the page
+      const completedRes = reses.filter(r => r.status === 'COMPLETED')
+      const completedWithOpenings = await Promise.all(
+        completedRes.map(async (r) => {
+          const op = await getOpening(r.opening_id)
+          return { reservation: r, opening: op }
+        })
+      )
+
+      const favBusinessPlaceholders = favs.map((f) => ({ business_id: f.business_id }))
+      await loadBusinessNames([
+        ...ops,
+        ...confirmedWithOpenings.map((item) => item.opening),
+        ...completedWithOpenings.map((item) => item.opening),
+        ...favBusinessPlaceholders,
+      ])
+
+      setAvailable(ops)
+      setCompleted(completedWithOpenings)
+
       const holdRes = reses.find(r => r.status === 'HOLD')
       if (holdRes && holdRes.hold_expires_at) {
         const expiresAt = new Date(holdRes.hold_expires_at).getTime()
@@ -64,7 +141,6 @@ export function ClientHomePage() {
           const op = await getOpening(holdRes.opening_id)
           setPending({ reservation: holdRes, opening: op })
           setCountdown(Math.floor((expiresAt - now) / 1000))
-          // Remove it from the available list temporarily
           setAvailable(prev => prev.filter(a => a.opening_id !== holdRes.opening_id))
         }
       }
@@ -84,14 +160,12 @@ export function ClientHomePage() {
       .finally(() => setProfileLoading(false))
   }, [])
 
-  // Timer countdown hook for holds
   useEffect(() => {
     if (!pending) return
 
     const interval = window.setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          // Time expired, refresh the board
           setPending(null)
           loadData()
           return 0
@@ -105,16 +179,15 @@ export function ClientHomePage() {
 
   const pendingMessage = useMemo(() => {
     if (!pending) return null
-    return `Confirm ${pending.opening.title || 'Appointment'} by ${formatTimer(countdown)} or it will expire` 
+    return `Confirm ${pending.opening.title || 'Appointment'} by ${formatTimer(countdown)} or it will expire`
   }, [pending, countdown])
 
-  // Actions
   const selectAppointment = async (opening) => {
     if (!canSelect) return
     try {
       const reservation = await holdReservation(opening.opening_id)
       const expiresAt = new Date(reservation.hold_expires_at).getTime()
-      
+
       setPending({ reservation, opening })
       setCountdown(Math.floor((expiresAt - Date.now()) / 1000))
       setAvailable((old) => old.filter((a) => a.opening_id !== opening.opening_id))
@@ -124,7 +197,8 @@ export function ClientHomePage() {
   }
 
   const confirmPending = async () => {
-    if (!pending) return
+    if (!pending || confirming) return
+    setConfirming(true)
     try {
       const confirmedRes = await confirmReservation(pending.reservation.reservation_id)
       setConfirmed((old) => [...old, { reservation: confirmedRes, opening: pending.opening }])
@@ -132,6 +206,8 @@ export function ClientHomePage() {
       setCountdown(0)
     } catch (err) {
       alert(err.message || "Failed to confirm reservation.")
+    } finally {
+      setConfirming(false)
     }
   }
 
@@ -152,19 +228,37 @@ export function ClientHomePage() {
   }
 
   const confirmCancel = async () => {
-    if (!cancelTarget) return
+    if (!cancelTarget || cancelling) return
+    setCancelling(true)
     try {
       await cancelReservation(cancelTarget.reservation.reservation_id, "Client cancellation")
       setConfirmed((old) => old.filter((a) => a.reservation.reservation_id !== cancelTarget.reservation.reservation_id))
       setCancelTarget(null)
-      loadData() // Refresh to see if it pops back into available
+      loadData()
     } catch (err) {
       alert(err.message || "Failed to cancel reservation.")
+    } finally {
+      setCancelling(false)
     }
   }
 
   const dismissCancel = () => {
     setCancelTarget(null)
+  }
+
+  const openProviderProfile = (opening) => {
+    setViewProfileTarget({
+      accountId: opening.posted_by_account_id,
+      businessId: opening.business_id,
+    })
+  }
+
+  const getProviderName = (opening) => {
+    return businessNamesById[opening.business_id] || opening.title || "Provider"
+  }
+
+  const getAppointmentType = (opening) => {
+    return opening.title || "Appointment"
   }
 
   return (
@@ -192,12 +286,24 @@ export function ClientHomePage() {
                   <li key={item.opening_id} className="rounded-lg border p-3">
                     <div className="flex justify-between gap-3">
                       <div className="text-left">
-                        <p className="font-medium">{item.title || "Appointment"}</p>
+                        <button
+                          type="button"
+                          className="text-left font-medium transition-colors hover:text-primary hover:underline"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openProviderProfile(item)
+                          }}
+                        >
+                          {getProviderName(item)}
+                        </button>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {formatTime(item.starts_at)}
+                          {formatTime(item.starts_at)} - {formatTime(item.ends_at).split(',')[2].trim()}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           Price: ${item.listed_price} · Staff: {item.staff_name || "N/A"}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Appointment type: {getAppointmentType(item)}
                         </p>
                       </div>
                       <button
@@ -228,12 +334,24 @@ export function ClientHomePage() {
                   <li key={item.reservation.reservation_id} className="rounded-lg border p-3 bg-background">
                     <div className="flex justify-between gap-3">
                       <div className="text-left">
-                        <p className="font-medium">{item.opening.title || "Appointment"}</p>
+                        <button
+                          type="button"
+                          className="text-left font-medium transition-colors hover:text-primary hover:underline"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openProviderProfile(item.opening)
+                          }}
+                        >
+                          {getProviderName(item.opening)}
+                        </button>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {formatTime(item.opening.starts_at)}
+                          {formatTime(item.opening.starts_at)} - {formatTime(item.opening.ends_at).split(',')[2].trim()}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                            Status: {item.reservation.status}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Appointment type: {getAppointmentType(item.opening)}
                         </p>
                       </div>
                       <button
@@ -247,11 +365,105 @@ export function ClientHomePage() {
                 ))}
               </ul>
             )}
+
+            {completed.length > 0 && (
+              <div className="mt-4 overflow-hidden rounded-lg border bg-background/60">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                  onClick={() => setCompletedMenuOpen((open) => !open)}
+                  aria-expanded={completedMenuOpen}
+                >
+                  <div>
+                    <h2 className="text-lg font-semibold">Completed Appointments</h2>
+                    <p className="text-xs text-muted-foreground">
+                      {completed.length} completed appointment{completed.length === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                  <ChevronDown
+                    className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${completedMenuOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {completedMenuOpen && (
+                  <ul className="space-y-2 border-t p-3">
+                    {completed.map((item) => (
+                      <li key={item.reservation.reservation_id} className="rounded-lg border p-3 bg-background">
+                        <div className="flex justify-between gap-3">
+                          <div className="text-left">
+                            <button
+                              type="button"
+                              className="text-left font-medium transition-colors hover:text-primary hover:underline"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openProviderProfile(item.opening)
+                              }}
+                            >
+                              {getProviderName(item.opening)}
+                            </button>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {formatTime(item.opening.starts_at)}
+                            </p>
+                            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+                              Completed
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Appointment type: {getAppointmentType(item.opening)}
+                            </p>
+                          </div>
+                          <div className="flex h-fit flex-col items-end gap-2">
+                            {!reviewedReservationIds.has(item.reservation.reservation_id) ? (
+                              <button
+                                className="flex items-center gap-1 rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-100 dark:hover:bg-amber-500/30"
+                                onClick={() => setReviewTarget(item)}
+                              >
+                                <Star className="h-3 w-3" />
+                                Review
+                              </button>
+                            ) : (
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                                Reviewed
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
 
-      {/* Confirmation Modal overlay */}
+      {favorites.length > 0 && (
+        <div className="mt-4 rounded-lg border bg-card p-4 shadow-sm">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Heart className="h-4 w-4 text-red-500" />
+            Favorite Providers
+          </h2>
+          <div className="mt-3 flex flex-wrap gap-3">
+            {favorites.map((fav) => (
+              <button
+                key={fav.business_id}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
+                onClick={() => {
+                  const biz = favoriteBusinesses[fav.business_id]
+                  setViewProfileTarget({
+                    accountId: biz?.owner_account_id || null,
+                    businessId: fav.business_id,
+                  })
+                }}
+              >
+                {businessNamesById[fav.business_id] || "Provider"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {pending && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={cancelPending} />
@@ -260,23 +472,40 @@ export function ClientHomePage() {
             <p className="mt-2 text-sm text-muted-foreground">{pendingMessage}</p>
             <div className="mt-4 flex justify-end gap-2">
               <button
-                className="rounded px-3 py-1 border border-border text-sm text-muted-foreground hover:bg-muted/20"
+                className="rounded px-3 py-1 border border-border text-sm text-muted-foreground hover:bg-muted/20 disabled:opacity-50"
                 onClick={cancelPending}
+                disabled={confirming}
               >
                 Cancel
               </button>
               <button
-                className="rounded px-3 py-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                className="rounded px-3 py-1 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 onClick={confirmPending}
+                disabled={confirming}
               >
-                Confirm
+                {confirming ? "Confirming..." : "Confirm"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Cancellation Modal overlay */}
+      <ProfileModal
+        accountId={viewProfileTarget?.accountId}
+        businessId={viewProfileTarget?.businessId}
+        onClose={() => setViewProfileTarget(null)}
+        onFavoriteChange={() => loadData()}
+      />
+
+      {reviewTarget && (
+        <ReviewModal
+          reservationId={reviewTarget.reservation.reservation_id}
+          companyName={getProviderName(reviewTarget.opening)}
+          onClose={() => setReviewTarget(null)}
+          onReviewSubmitted={() => loadData()}
+        />
+      )}
+
       {cancelTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={dismissCancel} />
@@ -290,16 +519,18 @@ export function ClientHomePage() {
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
-                className="rounded px-3 py-1 border border-border text-sm text-muted-foreground hover:bg-muted/20"
+                className="rounded px-3 py-1 border border-border text-sm text-muted-foreground hover:bg-muted/20 disabled:opacity-50"
                 onClick={dismissCancel}
+                disabled={cancelling}
               >
                 Keep
               </button>
               <button
-                className="rounded px-3 py-1 bg-red-600 text-white hover:bg-red-700"
+                className="rounded px-3 py-1 bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                 onClick={confirmCancel}
+                disabled={cancelling}
               >
-                Cancel Appointment
+                {cancelling ? "Cancelling..." : "Cancel Appointment"}
               </button>
             </div>
           </div>

@@ -82,11 +82,11 @@ def test_confirm_reservation_rejects_when_not_in_hold_state(patch_expire_stale_h
 
 
 @pytest.mark.unit
-def test_complete_reservation_allows_client_owner():
-    """Client who owns the reservation may mark a confirmed appointment complete."""
+def test_complete_reservation_allows_vendor_for_own_business():
+    """Vendor who owns the opening's business may mark a confirmed appointment complete."""
     db = MagicMock()
     account = MagicMock(spec=Account)
-    account.account_id = 7
+    account.account_id = 14
 
     reservation = MagicMock(spec=Reservation)
     reservation.reservation_id = 50
@@ -99,6 +99,9 @@ def test_complete_reservation_allows_client_owner():
     opening.status = "BOOKED"
     opening.version = 2
 
+    business = MagicMock()
+    business.business_id = 14
+
     res_chain = MagicMock()
     res_chain.filter.return_value = res_chain
     res_chain.with_for_update.return_value = res_chain
@@ -106,7 +109,7 @@ def test_complete_reservation_allows_client_owner():
     db.query.return_value = res_chain
     db.get.return_value = opening
 
-    with patch.object(booking_service, "_get_vendor_business", return_value=None):
+    with patch.object(booking_service, "_get_vendor_business", return_value=business):
         result = booking_service.complete_reservation(db, account, reservation_id=50)
 
     assert result is reservation
@@ -120,7 +123,7 @@ def test_complete_reservation_allows_client_owner():
 
 @pytest.mark.unit
 def test_complete_reservation_forbids_unrelated_account():
-    """Unrelated accounts may not complete another client's reservation."""
+    """Non-vendors (and vendors for other businesses) may not complete a reservation."""
     db = MagicMock()
     account = MagicMock(spec=Account)
     account.account_id = 99
@@ -146,4 +149,4 @@ def test_complete_reservation_forbids_unrelated_account():
             booking_service.complete_reservation(db, account, reservation_id=50)
 
     assert exc.value.status_code == 403
-    assert "client or vendor" in exc.value.detail
+    assert "Only the vendor can complete appointments" in exc.value.detail
